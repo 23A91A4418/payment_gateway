@@ -1,0 +1,28 @@
+# Environment variables
+.env
+.env.local
+.env.production
+.env.development
+
+# Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Build outputs
+dist/
+build/
+
+# Docker
+.pgdata/
+pg_data/
+docker-data/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
