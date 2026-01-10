@@ -1,0 +1,52 @@
+services:
+  postgres:
+    image: postgres:15
+    container_name: payment-gateway-postgres
+    environment:
+      POSTGRES_DB: payment_gateway
+      POSTGRES_USER: gateway_user
+      POSTGRES_PASSWORD: gateway_pass
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U gateway_user"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build: ./backend
+    container_name: payment-gateway-api
+    env_file:
+      - .env
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+    command: npm start
+
+  dashboard:
+    build: ./dashboard
+    container_name: payment-gateway-dashboard
+    depends_on:
+      backend:
+        condition: service_started
+    ports:
+      - "3000:3000"
+    command: npm run dev -- --host
+
+  checkout:
+    build: ./checkout
+    container_name: payment-gateway-checkout
+    depends_on:
+      backend:
+        condition: service_started
+    ports:
+      - "3001:3001"
+    command: npm start
+
+volumes:
+  pg_data:
