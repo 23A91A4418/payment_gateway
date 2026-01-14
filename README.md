@@ -1,349 +1,209 @@
-# Payment Gateway System
+# Payment Gateway with Multi-Method Processing & Hosted Checkout
 
-A full-stack Payment Gateway implementation featuring merchant authentication, order management, payment processing (UPI and Card), a hosted checkout page, and a merchant dashboard.  
-The entire system is Dockerized and can be started using a single command.
-
----
+This project implements a Dockerized payment gateway similar to Razorpay/Stripe, supporting merchant onboarding, order creation, UPI & card payments, and a hosted checkout page.
+It demonstrates backend API development, payment validation logic, state machine handling, and frontend checkout integration.
 
 ## Features
 
-- Dockerized deployment using docker-compose
-- RESTful APIs for order creation and payment processing
-- Merchant authentication using API Key and API Secret
-- UPI payments with VPA format validation
-- Card payments with Luhn algorithm validation and card network detection
-- Hosted checkout page for customers
-- Merchant dashboard with transaction analytics
-- PostgreSQL database with persistent storage
-- Clear separation of public and authenticated endpoints
-- Fully documented APIs, database schema, and UI
+- **Merchant authentication** using API Key & Secret
+- **Order creation and retrieval APIs**
+- **Payment processing** with:
+  - UPI (VPA validation)
+  - Card payments (Luhn algorithm, network detection, expiry validation)
+- **Hosted checkout page** for customers
+- **Deterministic test mode** for evaluation
+- **Fully containerized** using Docker Compose
+- **PostgreSQL database** with automatic seeding
+- **Redis & worker integration** (health-checked)
 
 ---
 
-## Architecture Overview
+## System Architecture
 
-### Components
+### Components:
+- **Backend API (Node.js + Express)** – Handles orders, payments, authentication
+- **PostgreSQL** – Persists merchants, orders, and payments
+- **Redis + Worker** – Background job readiness & health checks
+- **Dashboard Frontend (Nginx)** – Merchant dashboard
+- **Checkout Page (Nginx)** – Hosted payment UI
 
-- Backend API (Node.js + Express)
-- Merchant Dashboard (React)
-- Checkout Page (React)
-- PostgreSQL Database
+Architecture diagram is included in the `/docs` folder.
 
-### Flow
-
-1. Merchant creates orders and views transactions using the Dashboard
-2. Customers complete payments using the Hosted Checkout page
-3. Backend API handles authentication, validation, and payment processing
-4. PostgreSQL persists merchants, orders, and payments
-
-Architecture diagram available at:
-
-docs/architecture.png
-
-yaml
-Copy code
-
----
-
-## Project Structure
-
-payment_gateway/
-├── backend/
-│ ├── src/
-│ ├── Dockerfile
-│ └── package.json
-│
-├── checkout/
-│ ├── src/
-│ ├── Dockerfile
-│ └── package.json
-│
-├── dashboard/
-│ ├── src/
-│ ├── Dockerfile
-│ └── package.json
-│
-├── docs/
-│ ├── api.md
-│ ├── schema.md
-│ ├── ui.md
-│ ├── architecture.png
-│ ├── merchant-dashboard.png
-│ ├── complete-payment.png
-│ └── payment-success.png
-│
-├── docker-compose.yml
-├── .env.example
-└── README.md
-
-yaml
-Copy code
+![Architecture Diagram](./docs/architecture.png)
 
 ---
 
 ## Dockerized Setup
 
 ### Prerequisites
-
 - Docker
 - Docker Compose
 
-### Run All Services
+### Start the application
 
-docker-compose up -d
+```bash
+docker-compose up -d --build
+```
+All services start with one command. No manual setup required.
 
-yaml
-Copy code
+### Service Ports
 
-### Services Started
+| Service | URL |
+|---------|-----|
+| **API** | http://localhost:8000 |
+| **Dashboard** | http://localhost:3000 |
+| **Checkout Page** | http://localhost:3001 |
 
-- Backend API: http://localhost:8000
-- Merchant Dashboard: http://localhost:3000
-- Checkout Page: http://localhost:3001
-- PostgreSQL Database: port 5432
+### Test Merchant (Auto-Seeded)
+The application automatically seeds a test merchant on startup:
 
----
+- **Email**: `test@example.com`
+- **API Key**: `key_test_abc123`
+- **API Secret**: `secret_test_xyz789`
 
-## Test Merchant Credentials
-
-The test merchant is automatically seeded at application startup.
-
-Email: test@example.com
-API Key: key_test_abc123
-API Secret: secret_test_xyz789
-
-yaml
-Copy code
+*No manual merchant creation required.*
 
 ---
 
-## Environment Variables
+## Environment Configuration
 
-Create a `.env` file using the provided example.
+An example environment file is provided:
+- `.env.example`
 
-### `.env.example`
-
-PORT=8000
-
-DATABASE_URL=postgresql://gateway_user:gateway_pass@postgres:5432/payment_gateway
-
-TEST_MODE=false
-TEST_PAYMENT_SUCCESS=true
-TEST_PROCESSING_DELAY=1000
-
-TEST_MERCHANT_EMAIL=test@example.com
-TEST_API_KEY=key_test_abc123
-TEST_API_SECRET=secret_test_xyz789
-
-yaml
-Copy code
+This documents all required environment variables used by the system.
 
 ---
 
-## API Documentation Summary
-
-Base URL:
-
-http://localhost:8000
-
-shell
-Copy code
+## API Documentation
 
 ### Health Check
+**GET** `/health`
+```json
+{
+  "status": "healthy",
+  "database": "connected",
+  "redis": "connected",
+  "worker": "running",
+  "timestamp": "2026-01-10T12:30:00.000Z"
+}
+```
 
-GET /health
+### Create Order
+**POST** `/api/v1/orders`
 
-yaml
-Copy code
+**Headers:**
+- `X-Api-Key`: key_test_abc123
+- `X-Api-Secret`: secret_test_xyz789
 
----
+**Body:**
+```json
+{
+  "amount": 50000,
+  "currency": "INR",
+  "receipt": "receipt_123",
+  "notes": {
+    "customer_name": "John Doe"
+  }
+}
+```
 
-### Create Order (Authenticated)
+### Create Payment
+**POST** `/api/v1/payments`
 
-POST /api/v1/orders
+#### UPI Example
+```json
+{
+  "order_id": "order_xxxxxxxxxxxxxxxx",
+  "method": "upi",
+  "vpa": "user@paytm"
+}
+```
 
-makefile
-Copy code
-
-Headers:
-X-Api-Key
-X-Api-Secret
-
-yaml
-Copy code
-
----
-
-### Get Order (Authenticated)
-
-GET /api/v1/orders/{order_id}
-
-yaml
-Copy code
-
----
-
-### Get Order (Public – Checkout)
-
-GET /api/v1/orders/{order_id}/public
-
-yaml
-Copy code
-
----
-
-### Create Payment (Authenticated)
-
-POST /api/v1/payments
-
-yaml
-Copy code
-
----
-
-### Create Payment (Public – Checkout)
-
-POST /api/v1/payments/public
-
-yaml
-Copy code
-
----
-
-### Get Payment Status
-
-GET /api/v1/payments/{payment_id}
-
-yaml
-Copy code
+#### Card Example
+```json
+{
+  "order_id": "order_xxxxxxxxxxxxxxxx",
+  "method": "card",
+  "card": {
+    "number": "4111111111111111",
+    "expiry_month": "12",
+    "expiry_year": "2026",
+    "cvv": "123",
+    "holder_name": "John Doe"
+  }
+}
+```
 
 ---
 
-### Test Merchant Endpoint
+## Hosted Checkout Flow
 
-GET /api/v1/test/merchant
+**Checkout URL format:**
+`http://localhost:3001/checkout?order_id=<ORDER_ID>`
 
-sql
-Copy code
+**Flow:**
+1. Order details fetched using public API
+2. User selects payment method (UPI/Card)
+3. Payment is processed
+4. UI shows processing, then success/failure
 
-Full request and response examples are available in:
-
-docs/api.md
-
-yaml
-Copy code
-
----
-
-## Payment Processing Details
-
-### UPI Payments
-
-- VPA format validation: `username@bank`
-- Simulated success rate (90 percent by default)
-- Always passes through `processing` state before final status
-
-### Card Payments
-
-- Full Luhn algorithm validation
-- Card network detection (Visa, MasterCard, etc.)
-- Expiry date validation
-- Only last 4 digits stored (never full card number)
+All required `data-test-id` attributes are implemented for automated evaluation.
 
 ---
 
-## Merchant Dashboard
+## Database Schema Overview
 
-### Capabilities
+**Tables:**
+- `merchants`
+- `orders`
+- `payments`
 
-- View API Key and API Secret
-- View total transactions
-- View total successful payment amount
-- View payment success rate
-- View detailed transaction list
+**Relationships:**
+- One merchant → many orders
+- One order → many payments
 
-Screenshot available at:
-
-docs/merchant-dashboard.png
-
-yaml
-Copy code
+Detailed schema documentation is available in `/docs/schema.md`.
 
 ---
 
-## Hosted Checkout Page
+## Test Mode (Evaluation Support)
 
-### Access Format
+The system supports deterministic testing using environment variables:
 
-http://localhost:3001/checkout?order_id=order_xxxxxxxxxxxxxxxx
+```bash
+TEST_MODE=true
+TEST_PAYMENT_SUCCESS=true
+TEST_PROCESSING_DELAY=1000
+```
 
-markdown
-Copy code
-
-### Features
-
-- Public access (no authentication)
-- UPI and Card payment options
-- Real-time payment status polling
-- Professional and clean UI
-
-Screenshots:
-
-docs/complete-payment.png
-docs/payment-success.png
-
-yaml
-Copy code
+This ensures predictable outcomes for automated evaluation.
 
 ---
 
-## Database Schema
+## Screenshots & Demo
 
-### Tables
+Screenshots of dashboard and checkout flow are available in `/docs`.
 
-- merchants
-- orders
-- payments
+### 📸 Screenshots
 
-### Relationships
+| Merchant Login | Merchant Dashboard |
+| :---: | :---: |
+| ![Merchant Login](./docs/merchant-login.png) | ![Merchant Dashboard](./docs/merchant-dashboard.png) |
 
-- One merchant has many orders
-- One order has many payments
-
-Detailed schema documentation:
-
-docs/schema.md
-
-yaml
-Copy code
+| Payment Flow | Payment Success |
+| :---: | :---: |
+| ![Complete Payment](./docs/complete-payment.png) | ![Payment Success](./docs/payment-success.png) |
 
 ---
 
-## Error Codes
+Demo Video: ( https://www.youtube.com/watch?v=926VIW9ltqg )
 
-| Code                  | Description                      |
-|-----------------------|----------------------------------|
-| AUTHENTICATION_ERROR  | Invalid API credentials          |
-| BAD_REQUEST_ERROR     | Validation failure               |
-| NOT_FOUND_ERROR       | Resource not found               |
-| INVALID_VPA           | Invalid UPI VPA                  |
-| INVALID_CARD          | Card validation failed           |
-| EXPIRED_CARD          | Card expired                     |
-| PAYMENT_FAILED        | Payment processing failed        |
+## Submission Checklist
 
----
-
-## Task Requirement Compliance
-
-- Dockerized deployment with docker-compose
-- RESTful APIs with fixed endpoints
-- Merchant authentication using API key and secret
-- UPI and Card payment processing with proper validations
-- Hosted checkout page with professional UI
-- Database persistence with correct schema and relationships
-
----
-
-## Conclusion
-
-This project delivers a complete, production-style payment gateway system with secure authentication, validated payment processing, professional UI, and Docker-based deployment, fully satisfying all core task requirements.
+- [x] Dockerized deployment (`docker-compose up -d`)
+- [x] Test merchant auto-seeded
+- [x] All APIs implemented with correct formats
+- [x] Hosted checkout page completed
+- [x] Payment validation logic implemented
+- [x] `.env.example` included
+- [x] Documentation completed

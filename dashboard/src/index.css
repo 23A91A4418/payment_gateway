@@ -1,0 +1,239 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* 
+   FINTECH UI THEME 
+   - Font: System UI / Inter lookalike
+   - Colors: Slate/Gray text, Vivid Blue primary
+   - Style: Clean, bordered cards, soft shadows
+*/
+
+:root {
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --bg-page: #f7f9fc;
+  --bg-card: #ffffff;
+  --border-subtle: #e2e8f0;
+  --text-primary: #0f172a;
+  --text-secondary: #64748b;
+  --text-muted: #94a3b8;
+  --primary: #2563eb;
+  --primary-hover: #1d4ed8;
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: var(--bg-page);
+  color: var(--text-primary);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* --- DASHBOARD LAYOUT & CENTERING --- */
+
+/* Target the main dashboard wrapper */
+[data-test-id="dashboard"] {
+  max-width: 1100px;
+  margin: 40px auto;
+  padding: 0 24px;
+  /* Ensure generic padding from existing class doesn't break layout */
+}
+
+/* Typography fix for specific elements within dashboard */
+[data-test-id="dashboard"] h1 {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 2rem;
+  letter-spacing: -0.025em;
+}
+
+/* --- API CREDENTIALS CARD --- */
+[data-test-id="api-credentials"] {
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: 12px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  padding: 24px !important;
+  margin-bottom: 32px;
+}
+
+[data-test-id="api-credentials"] h2 {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 20px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+[data-test-id="api-credentials"] div {
+  display: flex;
+  align-items: center;
+  margin-bottom: 12px;
+  font-size: 0.95rem;
+}
+
+[data-test-id="api-credentials"] label {
+  width: 120px;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+[data-test-id="api-credentials"] span[data-test-id^="api-"] {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  background: #f1f5f9;
+  padding: 6px 10px;
+  border-radius: 6px;
+  color: #334155;
+  font-size: 0.85rem;
+  border: 1px solid #e2e8f0;
+}
+
+/* --- STATS GRID --- */
+[data-test-id="stats-container"] {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+  margin-bottom: 40px;
+}
+
+/* Override existing classes on these divs */
+[data-test-id="stats-container"]>div {
+  background-color: var(--bg-card) !important;
+  /* Override bg-color classes */
+  padding: 24px !important;
+  border-radius: 12px;
+  border: 1px solid var(--border-subtle);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  display: flex;
+  flex-direction: column;
+}
+
+/* Typography for stats */
+[data-test-id="stats-container"] h3 {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  font-weight: 500;
+  margin-bottom: 8px;
+}
+
+[data-test-id="stats-container"] [data-test-id="total-transactions"],
+[data-test-id="stats-container"] [data-test-id="total-amount"],
+[data-test-id="stats-container"] [data-test-id="success-rate"] {
+  font-size: 1.875rem;
+  /* 30px */
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: -0.025em;
+}
+
+/* --- BUTTONS --- */
+button {
+  background-color: var(--primary);
+  color: white;
+  font-weight: 600;
+  font-size: 0.95rem;
+  padding: 10px 20px;
+  border-radius: 6px;
+  transition: all 0.2s;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+  border: none;
+}
+
+button:hover {
+  background-color: var(--primary-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+/* --- TRANSACTIONS PAGE --- */
+
+/* Use :has() to target the container since we can't change HTML classes */
+/* If browser support concerns, we rely on the generic div.p-8 selector within the context of the page if needed, 
+   but since this file is Global, we must be careful. 
+   Fortunately, Dashboard also has p-8 but we scoped it.
+   Transactions page structure: <div className="p-8"> <h1...> <table data-test-id="transactions-table"> 
+*/
+
+/* Scope by table presence */
+body:has([data-test-id="transactions-table"]) div.p-8 {
+  max-width: 1100px;
+  margin: 40px auto;
+  padding: 0 24px !important;
+}
+
+table[data-test-id="transactions-table"] {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  margin-top: 24px;
+}
+
+thead tr {
+  background-color: #f8fafc;
+}
+
+th {
+  text-align: left;
+  padding: 16px 24px !important;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 600;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border-subtle) !important;
+  border-top: none;
+  border-left: none;
+  border-right: none;
+}
+
+td {
+  padding: 16px 24px !important;
+  border-bottom: 1px solid var(--border-subtle) !important;
+  color: var(--text-primary);
+  font-size: 0.95rem;
+  border-top: none;
+  border-left: none;
+  border-right: none;
+}
+
+/* Remove last border */
+tr:last-child td {
+  border-bottom: none !important;
+}
+
+/* Zebra Striping */
+tbody tr:nth-child(even) {
+  background-color: #fafafa;
+}
+
+tbody tr:hover {
+  background-color: #f1f5f9;
+}
+
+/* --- LOGIN PAGE (Generic) --- */
+form[data-test-id="login-form"] {
+  display: flex;
+  flex-direction: column;
+}
+
+form[data-test-id="login-form"] input {
+  /* Improve default inputs */
+  padding: 12px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  margin-bottom: 16px;
+  font-size: 1rem;
+}
+
+form[data-test-id="login-form"] button {
+  width: 100%;
+  margin-top: 8px;
+}

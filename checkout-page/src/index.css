@@ -1,0 +1,236 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg-page: #f8fafc;
+  --bg-card: #ffffff;
+  --border-subtle: #e2e8f0;
+  --text-primary: #0f172a;
+  --text-secondary: #64748b;
+  --primary: #2563eb;
+  --primary-hover: #1d4ed8;
+  --success: #10b981;
+  --error: #ef4444;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  background-color: var(--bg-page);
+  color: var(--text-primary);
+}
+
+/* --- MAIN CONTAINER CENTERING --- */
+/* The layout uses generic flex classes for centering in JSX. We refine them here. */
+
+/* When in loading/success/error state, the container is different from the main form */
+[data-test-id="checkout-container"] {
+  background: var(--bg-card);
+  border-radius: 16px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  border: 1px solid var(--border-subtle);
+  padding: 40px !important;
+  width: 100%;
+  max-width: 440px !important;
+  /* Perfect checkout width */
+  margin: 0 auto;
+  /* Fallback centering */
+  position: relative;
+}
+
+/* Enforce vertical centering context on the page wrapper if possible */
+/* Since we can't touch JSX, rely on the existing 'mt-10' or 'h-screen' classes present in the structure */
+
+/* --- ORDER SUMMARY --- */
+[data-test-id="order-summary"] {
+  border-bottom: 2px dashed var(--border-subtle) !important;
+  /* Coupon-style separator */
+  border-top: none;
+  border-left: none;
+  border-right: none;
+  padding-bottom: 24px !important;
+  margin-bottom: 24px !important;
+}
+
+[data-test-id="order-summary"] h2 {
+  font-size: 0.875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 16px;
+}
+
+[data-test-id="order-summary"] div {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+[data-test-id="order-amount"] {
+  font-size: 2rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  letter-spacing: -0.03em;
+}
+
+[data-test-id="order-id"] {
+  font-family: monospace;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  background: #f1f5f9;
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+
+/* --- PAYMENT METHODS --- */
+[data-test-id="payment-methods"] {
+  display: grid !important;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 32px;
+  /* Clean up any unexpected generic button styles */
+}
+
+button[data-method] {
+  border: 2px solid var(--border-subtle);
+  background: #fff;
+  border-radius: 8px;
+  padding: 16px !important;
+  font-weight: 600;
+  color: var(--text-secondary);
+  transition: all 0.2s;
+  text-align: center;
+}
+
+button[data-method]:hover {
+  border-color: #cbd5e1;
+  background-color: #f8fafc;
+  color: var(--text-primary);
+}
+
+button[data-method]:focus {
+  border-color: var(--primary);
+  color: var(--primary);
+  background-color: #eff6ff;
+  outline: none;
+}
+
+/* --- FORMS --- */
+input {
+  width: 100%;
+  height: 48px;
+  padding: 0 16px !important;
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  font-size: 1rem;
+  transition: all 0.2s;
+  background-color: #fff;
+  margin-bottom: 16px !important;
+}
+
+input:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+  outline: none;
+}
+
+input::placeholder {
+  color: #cbd5e1;
+}
+
+/* PAY BUTTON */
+button[data-test-id="pay-button"] {
+  background-color: var(--primary);
+  color: white;
+  width: 100%;
+  height: 52px;
+  border-radius: 8px;
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin-top: 12px;
+  box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.2);
+}
+
+button[data-test-id="pay-button"]:hover {
+  background-color: var(--primary-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 8px 10px -2px rgba(37, 99, 235, 0.25);
+}
+
+/* --- STATES (SUCCESS / FAIL / PROCESSING) --- */
+
+/* Processing */
+.spinner {
+  border: 3px solid #f1f5f9;
+  border-top: 3px solid var(--primary);
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  animation: spin 0.8s linear infinite;
+  margin: 0 auto 20px;
+}
+
+[data-test-id="processing-state"] {
+  text-align: center;
+  padding: 20px;
+}
+
+[data-test-id="processing-message"] {
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+/* Success & Error Cards */
+/* These are wrapped in checkout-container in JSX, so we handle content styling */
+
+[data-test-id="success-state"] {
+  text-align: center;
+}
+
+/* If the JSX uses specific classes like `bg-green-50`, we override them if needed */
+[data-test-id="success-state"] {
+  background-color: #fff !important;
+  /* Override JSX bg */
+}
+
+/* Success Icon approximation via border or similar if we can't add HTML */
+[data-test-id="success-state"] h2 {
+  color: var(--success);
+  font-weight: 700;
+  margin-bottom: 16px;
+}
+
+/* Error State */
+[data-test-id="error-state"] {
+  background-color: #fff !important;
+  text-align: center;
+}
+
+[data-test-id="error-state"] h2 {
+  color: var(--error);
+}
+
+[data-test-id="retry-button"] {
+  background: transparent;
+  border: 1px solid var(--error);
+  color: var(--error);
+  box-shadow: none;
+  margin-top: 20px;
+}
+
+[data-test-id="retry-button"]:hover {
+  background: #fef2f2;
+}
+
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+
+  100% {
+    transform: rotate(360deg);
+  }
+}

@@ -1,28 +1,18 @@
-# Environment variables
-.env
-.env.local
-.env.production
-.env.development
-
 # Node
 node_modules/
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
 
-# Build outputs
-dist/
-build/
+# Environment files
+.env
+backend/.env
+dashboard/.env
+checkout-page/.env
 
-# Docker
-.pgdata/
-pg_data/
-docker-data/
+# Build output
+dashboard/dist/
+checkout-page/dist/
 
-# OS files
+# OS / Editor files
 .DS_Store
-Thumbs.db
 
-# IDE
-.vscode/
-.idea/
+# Media / demo files
+*.mp4
