@@ -27,11 +27,9 @@ It demonstrates backend API development, payment validation logic, state machine
 - **Dashboard Frontend (Nginx)** – Merchant dashboard
 - **Checkout Page (Nginx)** – Hosted payment UI
 
-Architecture diagram is included in the `/docs` folder.
 
-![Architecture Diagram](./docs/architecture.png)
 
----
+
 
 ## Dockerized Setup
 
@@ -180,30 +178,4 @@ This ensures predictable outcomes for automated evaluation.
 
 ---
 
-## Screenshots & Demo
 
-Screenshots of dashboard and checkout flow are available in `/docs`.
-
-### 📸 Screenshots
-
-| Merchant Login | Merchant Dashboard |
-| :---: | :---: |
-| ![Merchant Login](./docs/merchant-login.png) | ![Merchant Dashboard](./docs/merchant-dashboard.png) |
-
-| Payment Flow | Payment Success |
-| :---: | :---: |
-| ![Complete Payment](./docs/complete-payment.png) | ![Payment Success](./docs/payment-success.png) |
-
----
-
-Demo Video: ( https://www.youtube.com/watch?v=926VIW9ltqg )
-
-## Submission Checklist
-
-- [x] Dockerized deployment (`docker-compose up -d`)
-- [x] Test merchant auto-seeded
-- [x] All APIs implemented with correct formats
-- [x] Hosted checkout page completed
-- [x] Payment validation logic implemented
-- [x] `.env.example` included
-- [x] Documentation completed
