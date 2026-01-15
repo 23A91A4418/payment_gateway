@@ -1,82 +1,91 @@
-# Payment Gateway with Multi-Method Processing & Hosted Checkout
+Payment Gateway System with Hosted Checkout
 
-This project implements a Dockerized payment gateway similar to Razorpay/Stripe, supporting merchant onboarding, order creation, UPI & card payments, and a hosted checkout page.
-It demonstrates backend API development, payment validation logic, state machine handling, and frontend checkout integration.
+This repository contains a complete, Dockerized payment gateway implementation inspired by real-world platforms such as Stripe and Razorpay.
+The system supports merchant authentication, order creation, multi-method payment processing (UPI and Card), and a publicly accessible hosted checkout page, along with a merchant dashboard.
 
-## Features
+The project focuses on backend correctness, payment lifecycle management, API security, and seamless frontend–backend integration.
 
-- **Merchant authentication** using API Key & Secret
-- **Order creation and retrieval APIs**
-- **Payment processing** with:
-  - UPI (VPA validation)
-  - Card payments (Luhn algorithm, network detection, expiry validation)
-- **Hosted checkout page** for customers
-- **Deterministic test mode** for evaluation
-- **Fully containerized** using Docker Compose
-- **PostgreSQL database** with automatic seeding
-- **Redis & worker integration** (health-checked)
+Key Capabilities
 
----
+Merchant authentication using API Key and API Secret
 
-## System Architecture
+REST APIs for creating and querying orders
 
-### Components:
-- **Backend API (Node.js + Express)** – Handles orders, payments, authentication
-- **PostgreSQL** – Persists merchants, orders, and payments
-- **Redis + Worker** – Background job readiness & health checks
-- **Dashboard Frontend (Nginx)** – Merchant dashboard
-- **Checkout Page (Nginx)** – Hosted payment UI
+Payment processing with:
 
+UPI payments with strict VPA validation
 
+Card payments with Luhn algorithm validation, expiry checks, and network detection
 
+Public hosted checkout page for customer payments
 
+Merchant dashboard for viewing credentials and transaction statistics
 
-## Dockerized Setup
+Deterministic test mode for automated evaluation
 
-### Prerequisites
-- Docker
-- Docker Compose
+Fully containerized setup using Docker Compose
 
-### Start the application
+PostgreSQL persistence with automatic schema creation and seeding
 
-```bash
+High-Level Architecture
+Core Components
+
+Backend API (Node.js + Express)
+Handles authentication, order management, payment processing, and validation logic.
+
+PostgreSQL Database
+Stores merchants, orders, and payments with proper relational integrity.
+
+Merchant Dashboard (React + Nginx)
+Allows merchants to view API credentials, transaction metrics, and payment history.
+
+Checkout Page (React + Nginx)
+Public-facing payment page used by customers to complete payments.
+
+Docker-Based Deployment
+Requirements
+
+Docker
+
+Docker Compose
+
+Running the Application
 docker-compose up -d --build
-```
-All services start with one command. No manual setup required.
 
-### Service Ports
 
-| Service | URL |
-|---------|-----|
-| **API** | http://localhost:8000 |
-| **Dashboard** | http://localhost:3000 |
-| **Checkout Page** | http://localhost:3001 |
+All services are started together with a single command.
 
-### Test Merchant (Auto-Seeded)
-The application automatically seeds a test merchant on startup:
+Exposed Services
+Component	Address
+Backend API	http://localhost:8000
 
-- **Email**: `test@example.com`
-- **API Key**: `key_test_abc123`
-- **API Secret**: `secret_test_xyz789`
+Merchant Dashboard	http://localhost:3000
 
-*No manual merchant creation required.*
+Checkout Page	http://localhost:3001
+Test Merchant Details
 
----
+A test merchant is automatically created when the backend starts.
 
-## Environment Configuration
+Email: test@example.com
 
-An example environment file is provided:
-- `.env.example`
+API Key: key_test_abc123
 
-This documents all required environment variables used by the system.
+API Secret: secret_test_xyz789
 
----
+No manual database setup or merchant creation is required.
 
-## API Documentation
+Environment Variables
 
-### Health Check
-**GET** `/health`
-```json
+A sample environment configuration is provided in .env.example.
+It documents all environment variables used by the backend, including database connection details and test-mode flags.
+
+API Overview
+Health Check
+
+GET /health
+
+Returns system readiness and dependency status.
+
 {
   "status": "healthy",
   "database": "connected",
@@ -84,17 +93,17 @@ This documents all required environment variables used by the system.
   "worker": "running",
   "timestamp": "2026-01-10T12:30:00.000Z"
 }
-```
 
-### Create Order
-**POST** `/api/v1/orders`
+Create Order (Authenticated)
 
-**Headers:**
-- `X-Api-Key`: key_test_abc123
-- `X-Api-Secret`: secret_test_xyz789
+POST /api/v1/orders
 
-**Body:**
-```json
+Headers
+
+X-Api-Key
+
+X-Api-Secret
+
 {
   "amount": 50000,
   "currency": "INR",
@@ -103,22 +112,19 @@ This documents all required environment variables used by the system.
     "customer_name": "John Doe"
   }
 }
-```
 
-### Create Payment
-**POST** `/api/v1/payments`
+Create Payment (Authenticated)
 
-#### UPI Example
-```json
+POST /api/v1/payments
+
+UPI Payment
 {
   "order_id": "order_xxxxxxxxxxxxxxxx",
   "method": "upi",
   "vpa": "user@paytm"
 }
-```
 
-#### Card Example
-```json
+Card Payment
 {
   "order_id": "order_xxxxxxxxxxxxxxxx",
   "method": "card",
@@ -130,52 +136,48 @@ This documents all required environment variables used by the system.
     "holder_name": "John Doe"
   }
 }
-```
 
----
+Hosted Checkout Flow
+Checkout URL Format
+http://localhost:3001/checkout?order_id=<ORDER_ID>
 
-## Hosted Checkout Flow
+Payment Flow
 
-**Checkout URL format:**
-`http://localhost:3001/checkout?order_id=<ORDER_ID>`
+Checkout page fetches order details using a public API
 
-**Flow:**
-1. Order details fetched using public API
-2. User selects payment method (UPI/Card)
-3. Payment is processed
-4. UI shows processing, then success/failure
+Customer selects UPI or Card payment method
 
-All required `data-test-id` attributes are implemented for automated evaluation.
+Payment is created and enters the processing state
 
----
+Final status transitions to success or failed
 
-## Database Schema Overview
+UI updates automatically based on payment status
 
-**Tables:**
-- `merchants`
-- `orders`
-- `payments`
+All required data-test-id attributes are implemented to support automated UI testing.
 
-**Relationships:**
-- One merchant → many orders
-- One order → many payments
+Database Design
+Tables
 
-Detailed schema documentation is available in `/docs/schema.md`.
+merchants
 
----
+orders
 
-## Test Mode (Evaluation Support)
+payments
 
-The system supports deterministic testing using environment variables:
+Relationships
 
-```bash
+One merchant can create multiple orders
+
+Each order can have multiple associated payments
+
+Deterministic Test Mode
+
+To support predictable automated evaluation, the system includes a test mode:
+
 TEST_MODE=true
 TEST_PAYMENT_SUCCESS=true
 TEST_PROCESSING_DELAY=1000
-```
 
-This ensures predictable outcomes for automated evaluation.
 
----
-
+When enabled, payment outcomes and delays become deterministic.
 
