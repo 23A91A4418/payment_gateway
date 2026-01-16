@@ -1,49 +1,45 @@
-# Payment Gateway System
+# Payment Gateway (Production-Ready)
 
-A production-style payment gateway implementation with Orders, Payments, Refunds, asynchronous processing using Redis queues, and webhook delivery with retry handling. The project runs fully using Docker Compose and includes a hosted checkout page and a dashboard UI.
+A production-style payment gateway backend with async processing, refunds, idempotency, and webhook delivery with retries. Includes a merchant dashboard and a hosted checkout page for public payments.
 
 ---
 
 ## Features
 
 ### Core APIs
-- Orders API (create and fetch)
-- Payments API
-  - Protected merchant payments
-  - Public payments for checkout flow
-  - Asynchronous payment processing via worker
-- Refunds API
-  - Refund creation with validation
-  - Asynchronous refund processing via worker
+- Orders API (create + fetch)
+- Payments API (create + fetch + list)
+- Refunds API (create + fetch)
 
-### Reliability and Delivery
-- Redis + Bull queue-based background processing
-- Webhooks
-  - Event persistence in database
-  - HMAC SHA256 signature support
-  - Retry scheduling using `next_retry_at`
-  - Delivery status tracking (`pending`, `delivered`, `failed`)
-- Idempotency support for payment creation using `Idempotency-Key`
+### Async Processing
+- Payment processing happens asynchronously via a worker queue
+- Refund processing happens asynchronously via a worker queue
 
-### Deployment
-- Docker Compose orchestration for:
-  - PostgreSQL
-  - Redis
-  - API service
-  - Worker service
-  - Dashboard UI
-  - Checkout UI
+### Idempotency
+- Payment creation supports `Idempotency-Key` header
+- Same idempotency key returns the same payment response for the same merchant
+
+### Webhooks
+- Webhook endpoints stored per merchant
+- Webhook events are queued in DB and delivered asynchronously
+- Retry logic with backoff schedule
+- After max retries, events are marked as failed
+
+### Apps Included
+- Backend API (Node.js + Express + PostgreSQL + Redis + Bull)
+- Dashboard (frontend)
+- Checkout Page (frontend)
 
 ---
 
 ## Tech Stack
 
-- Backend: Node.js, Express
-- Database: PostgreSQL
-- Queue: Redis + Bull
-- Webhook Delivery: Axios + HMAC SHA256
-- Containerization: Docker, Docker Compose
-- Frontend: React (Dashboard, Checkout Page)
+- Node.js (Express)
+- PostgreSQL
+- Redis
+- Bull Queue
+- Docker + Docker Compose
+- React (Dashboard + Checkout Page)
 
 ---
 
@@ -53,80 +49,59 @@ payment_gateway/
 backend/
 src/
 config/
-db.js
 controllers/
-orderController.js
-paymentController.js
-refundController.js
-testController.js
 middleware/
-authMiddleware.js
 routes/
-orderRoutes.js
-paymentRoutes.js
-refundRoutes.js
-testRoutes.js
 services/
-validationService.js
-webhookService.js
-index.js
 worker.js
-Dockerfile
-Dockerfile.worker
 package.json
 dashboard/
 checkout-page/
 docker-compose.yml
-README.md
 
 
 ---
 
-## Prerequisites
+## Getting Started (Docker)
 
-- Docker Desktop
-- Git
+### 1) Prerequisites
+- Docker Desktop installed and running
 
----
-
-## Running the Project (Docker)
-
-From the repository root:
+### 2) Start the full system
+From the root folder:
 
 ```bash
 docker compose up --build
-Services:
+This will start:
 
-API: http://localhost:8000
+PostgreSQL
 
-Dashboard UI: http://localhost:3000
+Redis
 
-Checkout UI: http://localhost:3001
+Backend API
 
-PostgreSQL: localhost:5432
+Worker
 
-Redis: localhost:6379
+Dashboard
 
-To stop:
+Checkout page
 
-docker compose down
-Health Check
+3) Verify health
 curl http://localhost:8000/health
-Expected response contains:
+Expected response:
 
-database: connected
-
-redis: connected
-
-status: healthy
-
+{
+  "status": "healthy",
+  "database": "connected",
+  "redis": "connected",
+  "worker": "running"
+}
 Test Merchant Credentials
-A test merchant is seeded automatically.
+The seeded test merchant is available for development/testing.
 
-Fetch test merchant credentials:
-
+Get test merchant credentials
 curl http://localhost:8000/api/v1/test/merchant
-Example response:
+Expected response (example):
 
 {
   "id": "550e8400-e29b-41d4-a716-446655440000",
@@ -135,194 +110,138 @@ Example response:
   "api_secret": "secret_test_xyz789",
   "seeded": true
 }
-These credentials are required for protected endpoints.
-
-API Authentication
-Protected endpoints require headers:
+API Usage (Windows CMD curl)
+All protected endpoints require:
 
 X-Api-Key
 
 X-Api-Secret
 
-Example:
+Replace the values below if your DB uses different test keys.
 
--H "X-Api-Key: key_test_abc123"
--H "X-Api-Secret: secret_test_xyz789"
-Public endpoints are designed for checkout use and do not require authentication.
-
-API Endpoints
-Orders
-Create Order (Protected)
+1) Create an Order (Protected)
 curl -X POST http://localhost:8000/api/v1/orders ^
   -H "X-Api-Key: key_test_abc123" ^
   -H "X-Api-Secret: secret_test_xyz789" ^
   -H "Content-Type: application/json" ^
   -d "{\"amount\":50000,\"currency\":\"INR\",\"receipt\":\"rcpt_123\"}"
-Get Order (Protected)
-curl -X GET http://localhost:8000/api/v1/orders/ORDER_ID ^
-  -H "X-Api-Key: key_test_abc123" ^
-  -H "X-Api-Secret: secret_test_xyz789"
-Get Order (Public)
-curl -X GET http://localhost:8000/api/v1/orders/ORDER_ID/public
-Payments
-Create Payment (Protected)
-curl -X POST http://localhost:8000/api/v1/payments ^
-  -H "X-Api-Key: key_test_abc123" ^
-  -H "X-Api-Secret: secret_test_xyz789" ^
-  -H "Content-Type: application/json" ^
-  -d "{\"order_id\":\"ORDER_ID\",\"method\":\"upi\",\"vpa\":\"user@paytm\"}"
-Create Payment (Public Checkout)
-curl -X POST http://localhost:8000/api/v1/payments/public ^
-  -H "Content-Type: application/json" ^
-  -d "{\"order_id\":\"ORDER_ID\",\"method\":\"upi\",\"vpa\":\"user@paytm\"}"
-Get Payment (Protected)
-curl -X GET http://localhost:8000/api/v1/payments/PAYMENT_ID ^
-  -H "X-Api-Key: key_test_abc123" ^
-  -H "X-Api-Secret: secret_test_xyz789"
-Get Payment (Public)
-curl -X GET http://localhost:8000/api/v1/payments/PAYMENT_ID/public
-List Payments (Protected)
-curl -X GET http://localhost:8000/api/v1/payments ^
-  -H "X-Api-Key: key_test_abc123" ^
-  -H "X-Api-Secret: secret_test_xyz789"
-Dashboard Stats (Protected)
-curl -X GET http://localhost:8000/api/v1/payments/dashboard-stats ^
-  -H "X-Api-Key: key_test_abc123" ^
-  -H "X-Api-Secret: secret_test_xyz789"
-Idempotency
-Payment creation supports idempotency using the Idempotency-Key header.
+Response:
 
-Example (Protected Payment):
-
+{
+  "id": "order_xxxxx",
+  "amount": 50000,
+  "currency": "INR",
+  "receipt": "rcpt_123",
+  "status": "created"
+}
+2) Fetch Order (Public)
+curl -X GET http://localhost:8000/api/v1/orders/order_xxxxx/public
+3) Create a Payment (Protected + Idempotency)
 curl -X POST http://localhost:8000/api/v1/payments ^
   -H "X-Api-Key: key_test_abc123" ^
   -H "X-Api-Secret: secret_test_xyz789" ^
   -H "Idempotency-Key: abc123" ^
   -H "Content-Type: application/json" ^
-  -d "{\"order_id\":\"ORDER_ID\",\"method\":\"upi\",\"vpa\":\"user@paytm\"}"
-Running the same request again with the same idempotency key returns the same payment response.
+  -d "{\"order_id\":\"order_xxxxx\",\"method\":\"upi\",\"vpa\":\"user@paytm\"}"
+Notes:
 
-To verify stored keys:
+Payment is created with status=pending
 
-docker exec -it pg_gateway psql -U gateway_user -d payment_gateway -c "SELECT key, merchant_id, expires_at FROM idempotency_keys;"
-Refunds
-Refunds are only allowed when:
+Worker later updates it to success or failed
 
-Payment exists and belongs to the merchant
+4) Fetch Payment (Protected)
+curl -X GET http://localhost:8000/api/v1/payments/pay_xxxxx ^
+  -H "X-Api-Key: key_test_abc123" ^
+  -H "X-Api-Secret: secret_test_xyz789"
+5) Create a Payment (Public Checkout Flow)
+Used by the hosted checkout page.
 
-Payment status is success
+curl -X POST http://localhost:8000/api/v1/payments/public ^
+  -H "Content-Type: application/json" ^
+  -d "{\"order_id\":\"order_xxxxx\",\"method\":\"upi\",\"vpa\":\"user@paytm\"}"
+6) Fetch Payment (Public)
+curl -X GET http://localhost:8000/api/v1/payments/pay_xxxxx/public
+This endpoint is used for checkout polling.
 
-Refund amount does not exceed refundable balance
+7) Create a Refund (Protected)
+Only successful payments can be refunded.
 
-Create Refund (Protected)
-curl -X POST http://localhost:8000/api/v1/payments/PAYMENT_ID/refunds ^
+curl -X POST http://localhost:8000/api/v1/payments/pay_xxxxx/refunds ^
   -H "X-Api-Key: key_test_abc123" ^
   -H "X-Api-Secret: secret_test_xyz789" ^
   -H "Content-Type: application/json" ^
   -d "{\"amount\":20000,\"reason\":\"customer requested\"}"
-Get Refund (Protected)
-curl -X GET http://localhost:8000/api/v1/refunds/REFUND_ID ^
+Response:
+
+{
+  "id": "rfnd_xxxxx",
+  "payment_id": "pay_xxxxx",
+  "amount": 20000,
+  "reason": "customer requested",
+  "status": "pending"
+}
+Worker updates refund to processed.
+
+8) Fetch Refund (Protected)
+curl -X GET http://localhost:8000/api/v1/refunds/rfnd_xxxxx ^
   -H "X-Api-Key: key_test_abc123" ^
   -H "X-Api-Secret: secret_test_xyz789"
-Asynchronous Worker Processing
-Payments and refunds are processed asynchronously by the worker service.
-
-Payment is created with status pending
-
-Worker updates payment status to success or failed
-
-Refund is created with status pending
-
-Worker updates refund status to processed
-
-View worker logs:
-
-docker logs -f gateway_worker
 Webhooks
-Webhook endpoints are stored per merchant in webhook_endpoints.
+Database Tables
+webhook_endpoints stores merchant webhook configuration
 
-Webhook events are stored in webhook_events and delivered by the worker:
+webhook_events stores queued events and delivery attempts
 
-Successful delivery updates status to delivered
-
-Failed delivery updates status to pending with next_retry_at
-
-Attempts are tracked in attempts
-
-Delivery uses HMAC SHA256 signature
-
-Verify Webhook Endpoints
-docker exec -it pg_gateway psql -U gateway_user -d payment_gateway -c "SELECT id, merchant_id, url, secret, is_active, created_at FROM webhook_endpoints;"
-Verify Webhook Events
-docker exec -it pg_gateway psql -U gateway_user -d payment_gateway -c "SELECT id, event_type, status, attempts, last_error, next_retry_at FROM webhook_events ORDER BY id DESC LIMIT 10;"
-Webhook Headers Sent
-X-Webhook-Signature: HMAC SHA256 signature of payload
-
-X-Webhook-Event: event type
-
-Example event types:
-
+Events Supported
 payment.success
 
 payment.failed
 
 refund.processed
 
-Testing Webhook Retry
-To test retry behavior:
+How delivery works
+Payment/Refund worker creates a webhook event row in webhook_events
 
-Set webhook URL to an invalid endpoint or one returning 404.
+Webhook queue worker delivers it to the latest active endpoint
 
-Trigger a payment.
+If delivery fails, it schedules a retry using next_retry_at
 
-Check webhook_events table and confirm:
+Attempts increase on each delivery attempt
 
-status remains pending
+After max retries, the event is marked as failed
 
-attempts increases
-
-next_retry_at is scheduled
-
-Query:
-
-docker exec -it pg_gateway psql -U gateway_user -d payment_gateway -c "SELECT id, event_type, status, attempts, last_error, next_retry_at FROM webhook_events ORDER BY id DESC LIMIT 5;"
-Frontend Applications
+Check webhook event status (PostgreSQL)
+docker exec -it pg_gateway psql -U gateway_user -d payment_gateway -c "SELECT id,event_type,status,attempts,last_error,next_retry_at FROM webhook_events ORDER BY id DESC LIMIT 10;"
+Worker Logs
+API logs
+docker logs -f gateway_api
+Worker logs
+docker logs -f gateway_worker
 Dashboard
-URL: http://localhost:3000
+The dashboard displays:
 
-Displays merchant stats and transactions
+Merchant API credentials
+
+Transaction stats
+
+Recent transactions
+
+Run via Docker Compose and open the dashboard URL exposed in your compose file.
 
 Checkout Page
-URL: http://localhost:3001
+Hosted checkout page supports:
 
-Public flow using:
+Order summary display
 
-GET order public endpoint
+Payment method selection (UPI/Card)
 
-POST payment public endpoint
+Public payment creation
 
-Poll payment status via public payment endpoint
+Polling public payment status until success/failed
 
-Common Issues
-Curl multi-line commands failing in Windows
-Use ^ for line continuation in CMD. Do not use \.
+Notes
+This project is designed for local development and evaluation
 
-Containers not starting cleanly
-Rebuild:
+Uses async processing patterns found in production systems (queues + workers)
 
-docker compose down
-docker compose up --build
-
-Submission Notes
-This project demonstrates:
-
-API design for payment workflows
-
-background job processing using queues
-
-persistence and retry mechanisms for webhook delivery
-
-idempotency handling
-
-Dockerized local environment for evaluation
-
+Webhooks include retry support and delivery state tracking in DB

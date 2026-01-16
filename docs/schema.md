@@ -1,101 +1,172 @@
-#  Database Schema Documentation
+# Database Schema Documentation
 
-The payment gateway uses **PostgreSQL** as its primary database.  
-The schema is designed to support merchants, orders, and payments with strict validation and relational integrity.
+This project uses **PostgreSQL** as the primary database.  
+The schema is designed to support merchant authentication, order creation, async payment processing, refunds, idempotency, and webhook delivery with retries.
 
 ---
 
-##  Merchants Table
+## Merchants
 
 Stores merchant details and API credentials used for authentication.
 
-**Table Name:** `merchants`
+**Table:** `merchants`
 
-| Column Name  | Data Type        | Description |
-|-------------|------------------|-------------|
-| id          | UUID (PK)        | Unique merchant identifier (auto-generated) |
-| name        | VARCHAR(255)     | Merchant name |
-| email       | VARCHAR(255)     | Unique merchant email |
-| api_key     | VARCHAR(64)      | API key for authentication |
-| api_secret  | VARCHAR(64)      | API secret for authentication |
-| webhook_url | TEXT             | Optional webhook URL |
-| is_active   | BOOLEAN          | Merchant active status (default: true) |
-| created_at | TIMESTAMP        | Creation timestamp |
-| updated_at | TIMESTAMP        | Last update timestamp |
+| Column | Type | Description |
+|-------|------|-------------|
+| id | UUID (PK) | Unique merchant identifier |
+| name | VARCHAR | Merchant name |
+| email | VARCHAR (UNIQUE) | Merchant email |
+| api_key | VARCHAR | API key used in request headers |
+| api_secret | VARCHAR | API secret used in request headers |
+| is_active | BOOLEAN | Active status (default: true) |
+| created_at | TIMESTAMP | Created timestamp |
+| updated_at | TIMESTAMP | Updated timestamp |
 
 ---
 
-##  Orders Table
+## Orders
 
 Represents payment orders created by merchants.
 
-**Table Name:** `orders`
+**Table:** `orders`
 
-| Column Name  | Data Type        | Description |
-|-------------|------------------|-------------|
-| id          | VARCHAR(64) (PK) | Order ID (`order_` + 16 alphanumeric characters) |
-| merchant_id | UUID (FK)        | References `merchants.id` |
-| amount      | INTEGER          | Order amount in paise (minimum 100) |
-| currency    | VARCHAR(3)       | Currency code (default: INR) |
-| receipt     | VARCHAR(255)     | Optional receipt reference |
-| notes       | JSONB            | Optional metadata |
-| status      | VARCHAR(20)      | Order status (default: created) |
-| created_at | TIMESTAMP        | Creation timestamp |
-| updated_at | TIMESTAMP        | Last update timestamp |
+| Column | Type | Description |
+|-------|------|-------------|
+| id | VARCHAR (PK) | Order ID (`order_` + random string) |
+| merchant_id | UUID (FK) | References `merchants.id` |
+| amount | INTEGER | Amount in paise (minimum 100) |
+| currency | VARCHAR(3) | Currency code (default: INR) |
+| receipt | VARCHAR | Optional receipt reference |
+| notes | JSONB | Optional metadata |
+| status | VARCHAR | Order status (default: `created`) |
+| created_at | TIMESTAMP | Created timestamp |
+| updated_at | TIMESTAMP | Updated timestamp |
 
-**Constraints:**
-- `amount >= 100`
-- Foreign key constraint on `merchant_id`
-
-**Indexes:**
-- Index on `merchant_id` for efficient merchant-based queries
+**Relationships**
+- `orders.merchant_id → merchants.id`
 
 ---
 
-##  Payments Table
+## Payments
 
-Tracks all payment attempts for orders.
+Tracks payment attempts for orders.  
+Payments are created as `pending` and later updated asynchronously by the worker.
 
-**Table Name:** `payments`
+**Table:** `payments`
 
-| Column Name        | Data Type        | Description |
-|-------------------|------------------|-------------|
-| id                | VARCHAR(64) (PK) | Payment ID (`pay_` + 16 alphanumeric characters) |
-| order_id          | VARCHAR(64) (FK) | References `orders.id` |
-| merchant_id       | UUID (FK)        | References `merchants.id` |
-| amount            | INTEGER          | Payment amount in paise |
-| currency          | VARCHAR(3)       | Currency code (default: INR) |
-| method            | VARCHAR(20)      | Payment method (`upi` or `card`) |
-| status            | VARCHAR(20)      | Payment status (`processing`, `success`, `failed`) |
-| vpa               | VARCHAR(255)     | Virtual Payment Address (UPI only) |
-| card_network      | VARCHAR(20)      | Card network (visa, mastercard, amex, rupay, unknown) |
-| card_last4        | VARCHAR(4)       | Last 4 digits of card number |
-| error_code        | VARCHAR(50)      | Error code if payment fails |
-| error_description | TEXT             | Error description if payment fails |
-| created_at       | TIMESTAMP        | Creation timestamp |
-| updated_at       | TIMESTAMP        | Last update timestamp |
+| Column | Type | Description |
+|-------|------|-------------|
+| id | VARCHAR (PK) | Payment ID (`pay_` + random string) |
+| order_id | VARCHAR (FK) | References `orders.id` |
+| merchant_id | UUID (FK) | References `merchants.id` |
+| amount | INTEGER | Amount in paise |
+| currency | VARCHAR(3) | Currency code |
+| method | VARCHAR | Payment method (`upi` / `card`) |
+| status | VARCHAR | `pending` / `success` / `failed` |
+| vpa | VARCHAR | UPI VPA (UPI only) |
+| card_network | VARCHAR | Card network (card only) |
+| card_last4 | VARCHAR(4) | Last 4 digits of card number |
+| error_code | VARCHAR | Failure code (if failed) |
+| error_description | TEXT | Failure description (if failed) |
+| created_at | TIMESTAMP | Created timestamp |
+| updated_at | TIMESTAMP | Updated timestamp |
 
-**Indexes:**
-- Index on `order_id`
-- Index on `status`
-
----
-
-##  Table Relationships
-
-- One **merchant** can have many **orders**
-- One **order** can have many **payments**
-- Each **payment** belongs to:
-  - One order
-  - One merchant
+**Relationships**
+- `payments.order_id → orders.id`
+- `payments.merchant_id → merchants.id`
 
 ---
 
-##  Database Seeding
+## Refunds
 
-On application startup, a **test merchant** is automatically inserted if it does not already exist:
+Refunds are created as `pending` and processed asynchronously by the worker.
 
-Email: test@example.com
+**Table:** `refunds`
 
-API Key: key_test_abc123
-API Secret: secret_test_xyz789
+| Column | Type | Description |
+|-------|------|-------------|
+| id | VARCHAR (PK) | Refund ID (`rfnd_` + random string) |
+| payment_id | VARCHAR (FK) | References `payments.id` |
+| merchant_id | UUID (FK) | References `merchants.id` |
+| amount | INTEGER | Refund amount in paise |
+| reason | TEXT | Optional reason |
+| status | VARCHAR | `pending` / `processed` |
+| created_at | TIMESTAMP | Created timestamp |
+| processed_at | TIMESTAMP | When refund was processed |
+
+**Relationships**
+- `refunds.payment_id → payments.id`
+- `refunds.merchant_id → merchants.id`
+
+---
+
+## Idempotency Keys
+
+Ensures duplicate payment requests with the same idempotency key return the same result.
+
+**Table:** `idempotency_keys`
+
+| Column | Type | Description |
+|-------|------|-------------|
+| key | VARCHAR (PK) | Idempotency key from request header |
+| merchant_id | UUID (FK) | References `merchants.id` |
+| response | JSONB | Stored API response payload |
+| created_at | TIMESTAMP | Created timestamp |
+| expires_at | TIMESTAMP | Expiration timestamp |
+
+**Relationships**
+- `idempotency_keys.merchant_id → merchants.id`
+
+---
+
+## Webhook Endpoints
+
+Stores merchant webhook endpoint configuration.
+
+**Table:** `webhook_endpoints`
+
+| Column | Type | Description |
+|-------|------|-------------|
+| id | SERIAL (PK) | Endpoint identifier |
+| merchant_id | UUID (FK) | References `merchants.id` |
+| url | TEXT | Webhook receiver URL |
+| secret | TEXT | HMAC signing secret |
+| is_active | BOOLEAN | Active status |
+| created_at | TIMESTAMP | Created timestamp |
+
+**Relationships**
+- `webhook_endpoints.merchant_id → merchants.id`
+
+---
+
+## Webhook Events
+
+Stores webhook delivery jobs and retry state.
+
+**Table:** `webhook_events`
+
+| Column | Type | Description |
+|-------|------|-------------|
+| id | SERIAL (PK) | Event identifier |
+| merchant_id | UUID (FK) | References `merchants.id` |
+| event_type | VARCHAR | Example: `payment.success`, `refund.processed` |
+| payload | JSONB | Webhook payload body |
+| status | VARCHAR | `pending` / `delivered` / `failed` |
+| attempts | INTEGER | Delivery attempt counter |
+| last_error | TEXT | Last failure reason (if any) |
+| next_retry_at | TIMESTAMP | When the next retry is allowed |
+| delivered_at | TIMESTAMP | When delivery succeeded |
+| created_at | TIMESTAMP | Created timestamp |
+
+**Relationships**
+- `webhook_events.merchant_id → merchants.id`
+
+---
+
+## Database Seeding
+
+On startup, the system seeds a test merchant (if not already present):
+
+- Email: `test@example.com`
+- API Key: `key_test_abc123`
+- API Secret: `secret_test_xyz789`

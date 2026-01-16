@@ -1,57 +1,66 @@
-# 🎨 UI & Frontend Documentation
+# UI & Frontend Documentation
 
-The frontend dashboard is built using **React** with **Pure Vanilla CSS** styling to match the reference design specifications.
-
----
-
-## Architecture
-
-| Component | File Path | Description |
-|-----------|-----------|-------------|
-| **Login** | `/src/pages/Login.jsx` | Merchant authentication interface |
-| **Dashboard** | `/src/pages/Dashboard.jsx` | Main view showing API keys and statistics |
-| **Transactions** | `/src/pages/Transactions.jsx` | Table view of all payment history |
+The frontend dashboard is built using **React** and styled using **Vanilla CSS** (no Tailwind/Bootstrap), following a clean and minimal layout.
 
 ---
 
-## Styling Strategy
+## Pages & Components
 
-The project uses a component-specific **CSS stylesheet** for each page, avoiding framework dependencies like Tailwind or Bootstrap to ensure a clean, custom look.
+| Page | File Path | Purpose |
+|------|----------|---------|
+| Login | `src/pages/Login.jsx` | Merchant login screen |
+| Dashboard | `src/pages/Dashboard.jsx` | Displays API credentials and key statistics |
+| Transactions | `src/pages/Transactions.jsx` | Displays payment history in a table |
 
-### 1. Login Page (`Login.css`)
-*   **Design:** Clean, centered card layout with shadow elevation.
-*   **Color Palette:** White card (`#ffffff`) on a light gray-blue background (`#f4f6fb`).
-*   **Primary Action:** Indigo button (`#4f46e5`) with hover states.
+---
 
-### 2. Dashboard (`Dashboard.css`)
-*   **Layout:** Responsive grid system.
-    *   **Desktop:** 3-column grid for statistics.
-    *   **Mobile:** Stacked layout for readability on smaller screens.
-*   **Elements:** 
-    *   **Credential Cards:** Display API Key/Secret with clear labels.
-    *   **Stat Cards:** High-contrast stats for total volume and transactions.
+## Styling Approach
 
-### 3. Transactions Table (`Transactions.css`)
-*   **Style:** Minimalist table design.
-*   **Readability:** Generous padding and bottom borders for row separation.
-*   **Width:** Full-width container scaling.
+Each page has its own dedicated CSS file for better separation and easier maintenance.
+
+| CSS File | Purpose |
+|---------|---------|
+| `src/styles/Login.css` | Login page layout and form styling |
+| `src/styles/Dashboard.css` | Dashboard cards, credentials section, and stats grid |
+| `src/styles/Transactions.css` | Table styling for transactions page |
+
+If your project uses a different folder name for styles (example: `src/css/`), update the paths above accordingly.
+
+---
+
+## Design Details
+
+### 1) Login Page (`Login.css`)
+- Centered card layout with subtle shadow
+- Light background with white form card
+- Primary action button with hover effect
+
+### 2) Dashboard (`Dashboard.css`)
+- API credentials shown in separate cards with clear labels
+- Stats shown in a responsive grid layout
+- Desktop: 3-column stats grid
+- Mobile: stacked layout for readability
+
+### 3) Transactions (`Transactions.css`)
+- Simple, readable table layout
+- Consistent padding and row separators
+- Full-width table with clean borders
 
 ---
 
 ## Responsive Design
 
-All pages implement media queries to ensure compatibility across devices:
+Media queries are used to ensure mobile/tablet compatibility.
+
+Example:
 
 ```css
-/* Example from Dashboard.css */
 @media (max-width: 900px) {
-    .credentials {
-        flex-direction: column;
-    }
-    .stats {
-        grid-template-columns: 1fr;
-    }
-}
-```
+  .credentials {
+    flex-direction: column;
+  }
 
-This ensures the dashboard is usable on phones, tablets, and desktops.
+  .stats {
+    grid-template-columns: 1fr;
+  }
+}
