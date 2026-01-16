@@ -1,13 +1,14 @@
-const express = require('express');
+const express = require("express");
 const router = express.Router();
-const orderController = require('../controllers/orderController');
-const authenticateHost = require('../middleware/authMiddleware');
 
-// Protected Routes
-router.post('/', authenticateHost, orderController.createOrder);
-router.get('/:orderId', authenticateHost, orderController.getOrder);
+const orderController = require("../controllers/orderController");
+const authMiddleware = require("../middleware/authMiddleware");
 
-// Public Route
-router.get('/:orderId/public', orderController.getOrderPublic);
+// Public route first
+router.get("/:orderId/public", orderController.getOrderPublic);
+
+// Protected
+router.post("/", authMiddleware, orderController.createOrder);
+router.get("/:orderId", authMiddleware, orderController.getOrder);
 
 module.exports = router;

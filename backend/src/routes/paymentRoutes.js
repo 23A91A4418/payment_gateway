@@ -1,21 +1,20 @@
-const express = require('express');
+const express = require("express");
 const router = express.Router();
-const paymentController = require('../controllers/paymentController');
-const authenticateHost = require('../middleware/authMiddleware');
+
+const paymentController = require("../controllers/paymentController");
+const authMiddleware = require("../middleware/authMiddleware");
+
 
 // Public Routes
-router.post('/public', paymentController.createPaymentPublic);
-router.get('/:paymentId/public', paymentController.getPaymentPublic);
+router.post("/public", paymentController.createPaymentPublic);
+router.get("/:paymentId/public", paymentController.getPaymentPublic);
 
-// Dashboard Stats (Explicitly placed at top with inline auth to ensure priority)
-router.get('/dashboard-stats', authenticateHost, paymentController.getDashboardStats);
-
-
+// Dashboard Stats (keep BEFORE dynamic protected routes)
+router.get("/dashboard-stats", authMiddleware, paymentController.getDashboardStats);
 
 // Protected Routes
-router.use(authenticateHost);
-router.post('/', paymentController.createPayment);
-router.get('/', paymentController.listPayments);
-router.get('/:paymentId', paymentController.getPayment);
+router.post("/", authMiddleware, paymentController.createPayment);
+router.get("/", authMiddleware, paymentController.listPayments);
+router.get("/:paymentId", authMiddleware, paymentController.getPayment);
 
 module.exports = router;
