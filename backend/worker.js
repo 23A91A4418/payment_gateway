@@ -1,24 +1,20 @@
 const Queue = require("bull");
 const path = require("path");
 
-// ✅ Correct DB path
+// Correct DB path
 const dbPath = path.join(__dirname, "src", "config", "db");
 const { pool } = require(dbPath);
 
-// ✅ Webhook service
+// Webhook service
 const { queueWebhookEvent, deliverWebhook } = require("./src/services/webhookService");
 
 const REDIS_URL = process.env.REDIS_URL || "redis://127.0.0.1:6379";
 
-console.log("🟢 Worker running... waiting for jobs");
+console.log("Worker running... waiting for jobs");
 
-// ---------------- PAYMENT QUEUE ----------------
+// ---------------- QUEUES ----------------
 const paymentQueue = new Queue("payment-queue", REDIS_URL);
-
-// ---------------- REFUND QUEUE ----------------
 const refundQueue = new Queue("refund-queue", REDIS_URL);
-
-// ---------------- WEBHOOK QUEUE ----------------
 const webhookQueue = new Queue("webhook-queue", REDIS_URL);
 
 // ================= PAYMENT PROCESSOR =================
@@ -52,7 +48,6 @@ paymentQueue.process(async (job) => {
     const error_code = success ? null : "PAYMENT_FAILED";
     const error_description = success ? null : "Payment processing failed";
 
-    // Update payment status
     await pool.query(
       `UPDATE payments
        SET status=$1, error_code=$2, error_description=$3, updated_at=CURRENT_TIMESTAMP
@@ -60,25 +55,24 @@ paymentQueue.process(async (job) => {
       [newStatus, error_code, error_description, paymentId]
     );
 
-    console.log(`✅ Payment ${paymentId} processed: ${newStatus}`);
+    console.log(`Payment ${paymentId} processed: ${newStatus}`);
 
-    // Fetch payment row for webhook payload
+    // Fetch payment for webhook payload
     const payRes = await pool.query(`SELECT * FROM payments WHERE id=$1`, [paymentId]);
     if (payRes.rows.length === 0) return;
 
     const payment = payRes.rows[0];
     const eventType = newStatus === "success" ? "payment.success" : "payment.failed";
 
-    // Queue webhook event in DB
     await queueWebhookEvent(payment.merchant_id, eventType, {
       event: eventType,
       data: payment,
     });
 
-    // Trigger webhook worker
+    // Trigger webhook delivery
     await webhookQueue.add({ merchantId: payment.merchant_id });
   } catch (err) {
-    console.error("❌ Payment worker error:", err);
+    console.error("Payment worker error:", err);
     throw err;
   }
 });
@@ -88,7 +82,7 @@ refundQueue.process(async (job) => {
   try {
     const { refundId } = job.data;
 
-    console.log("🔁 Processing refund:", refundId);
+    console.log("Processing refund:", refundId);
 
     // Simulate delay
     await new Promise((res) => setTimeout(res, 3000));
@@ -100,9 +94,9 @@ refundQueue.process(async (job) => {
       [refundId]
     );
 
-    console.log("✅ Refund processed:", refundId);
+    console.log("Refund processed:", refundId);
 
-    // Fetch refund row for webhook payload
+    // Fetch refund for webhook payload
     const refundRes = await pool.query(`SELECT * FROM refunds WHERE id=$1`, [refundId]);
     if (refundRes.rows.length === 0) return;
 
@@ -116,7 +110,7 @@ refundQueue.process(async (job) => {
 
     await webhookQueue.add({ merchantId: refund.merchant_id });
   } catch (err) {
-    console.error("❌ Refund worker error:", err);
+    console.error("Refund worker error:", err);
     throw err;
   }
 });
@@ -126,7 +120,6 @@ webhookQueue.process(async (job) => {
   try {
     const { merchantId } = job.data;
 
-    // Pick 1 pending webhook event for this merchant
     const result = await pool.query(
       `SELECT *
        FROM webhook_events
@@ -143,7 +136,7 @@ webhookQueue.process(async (job) => {
     const eventRow = result.rows[0];
 
     console.log(
-      `📡 Delivering webhook event ${eventRow.id} (${eventRow.event_type}) attempt=${(eventRow.attempts || 0) + 1}`
+      `Delivering webhook event ${eventRow.id} (${eventRow.event_type}) attempt=${(eventRow.attempts || 0) + 1}`
     );
 
     await deliverWebhook(eventRow);
@@ -163,13 +156,13 @@ webhookQueue.process(async (job) => {
       await webhookQueue.add({ merchantId });
     }
   } catch (err) {
-    console.error("❌ Webhook worker error:", err);
+    console.error("Webhook worker error:", err);
     throw err;
   }
 });
 
-// ✅ WEBHOOK RETRY POLLER (IMPORTANT)
-// This ensures retries happen automatically even if no new payments/refunds occur.
+// ================= WEBHOOK RETRY POLLER =================
+// Ensures retries happen even if no new payments/refunds are created.
 setInterval(async () => {
   try {
     const due = await pool.query(
@@ -184,6 +177,6 @@ setInterval(async () => {
       await webhookQueue.add({ merchantId: row.merchant_id });
     }
   } catch (err) {
-    console.error("❌ Webhook poller error:", err.message);
+    console.error("Webhook poller error:", err.message);
   }
 }, 5000);

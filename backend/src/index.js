@@ -53,12 +53,14 @@ const orderRoutes = require("./routes/orderRoutes");
 const paymentRoutes = require("./routes/paymentRoutes");
 const refundRoutes = require("./routes/refundRoutes");
 const testRoutes = require("./routes/testRoutes");
+const webhookRoutes = require("./routes/webhookRoutes");
+
 
 app.use("/api/v1/orders", orderRoutes);
 app.use("/api/v1/payments", paymentRoutes);
 app.use("/api/v1", refundRoutes);
 app.use("/api/v1/test", testRoutes);
-
+app.use("/api/v1/webhooks", webhookRoutes);
 // Start Server and Init DB
 const startServer = async () => {
   try {

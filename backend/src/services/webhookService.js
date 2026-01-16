@@ -2,13 +2,31 @@ const crypto = require("crypto");
 const axios = require("axios");
 const { pool } = require("../config/db");
 
-const MAX_RETRIES = 5; // must stop after this
+const MAX_RETRIES = 5;
 
 function signPayload(payload, secret) {
   return crypto
     .createHmac("sha256", secret)
     .update(JSON.stringify(payload))
     .digest("hex");
+}
+
+function getRetryDelaysSeconds() {
+  const isTestRetry =
+    String(process.env.WEBHOOK_RETRY_INTERVALS_TEST).toLowerCase() === "true";
+
+  // Spec-required test mode (fast retries)
+  if (isTestRetry) {
+    return [0, 5, 10, 15, 20];
+  }
+
+  // Spec-required production schedule
+  // Attempt 1: immediate
+  // Attempt 2: 1 min
+  // Attempt 3: 5 min
+  // Attempt 4: 30 min
+  // Attempt 5: 2 hr
+  return [0, 60, 300, 1800, 7200];
 }
 
 async function queueWebhookEvent(merchantId, eventType, payload) {
@@ -22,12 +40,13 @@ async function queueWebhookEvent(merchantId, eventType, payload) {
 async function deliverWebhook(eventRow) {
   const { id, merchant_id, event_type, payload, attempts } = eventRow;
 
-  // Stop if already max retries
+  // If already maxed out retries, mark failed and stop
   if ((attempts || 0) >= MAX_RETRIES) {
     await pool.query(
       `UPDATE webhook_events
        SET status='failed',
-           last_error='Max retries reached'
+           last_error='Max retries reached',
+           next_retry_at=NULL
        WHERE id=$1`,
       [id]
     );
@@ -47,7 +66,8 @@ async function deliverWebhook(eventRow) {
     await pool.query(
       `UPDATE webhook_events
        SET status='failed',
-           last_error='No active webhook endpoint'
+           last_error='No active webhook endpoint',
+           next_retry_at=NULL
        WHERE id=$1`,
       [id]
     );
@@ -57,10 +77,11 @@ async function deliverWebhook(eventRow) {
   const endpoint = endpointRes.rows[0];
   const signature = signPayload(payload, endpoint.secret);
 
-  // ✅ increment attempts BEFORE sending
+  // Increment attempts BEFORE sending
   const attemptRes = await pool.query(
     `UPDATE webhook_events
-     SET attempts = COALESCE(attempts,0) + 1
+     SET attempts = COALESCE(attempts,0) + 1,
+         last_attempt_at = CURRENT_TIMESTAMP
      WHERE id=$1
      RETURNING attempts`,
     [id]
@@ -88,7 +109,7 @@ async function deliverWebhook(eventRow) {
       [id]
     );
   } catch (err) {
-    // If reached max retries after this attempt -> failed
+    // If max retries reached after this attempt -> mark failed
     if (currentAttempt >= MAX_RETRIES) {
       await pool.query(
         `UPDATE webhook_events
@@ -101,9 +122,8 @@ async function deliverWebhook(eventRow) {
       return;
     }
 
-    // retry schedule: 5s, 30s, 2m, 10m, 30m
-    const delays = [5, 30, 120, 600, 1800];
-    const delaySeconds = delays[Math.min(currentAttempt - 1, delays.length - 1)];
+    const delays = getRetryDelaysSeconds();
+    const delaySeconds = delays[currentAttempt] ?? delays[delays.length - 1];
 
     await pool.query(
       `UPDATE webhook_events
