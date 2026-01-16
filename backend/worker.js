@@ -67,7 +67,6 @@ paymentQueue.process(async (job) => {
     if (payRes.rows.length === 0) return;
 
     const payment = payRes.rows[0];
-
     const eventType = newStatus === "success" ? "payment.success" : "payment.failed";
 
     // Queue webhook event in DB
@@ -168,3 +167,23 @@ webhookQueue.process(async (job) => {
     throw err;
   }
 });
+
+// ✅ WEBHOOK RETRY POLLER (IMPORTANT)
+// This ensures retries happen automatically even if no new payments/refunds occur.
+setInterval(async () => {
+  try {
+    const due = await pool.query(
+      `SELECT DISTINCT merchant_id
+       FROM webhook_events
+       WHERE status='pending'
+         AND (next_retry_at IS NULL OR next_retry_at <= CURRENT_TIMESTAMP)
+       LIMIT 5`
+    );
+
+    for (const row of due.rows) {
+      await webhookQueue.add({ merchantId: row.merchant_id });
+    }
+  } catch (err) {
+    console.error("❌ Webhook poller error:", err.message);
+  }
+}, 5000);

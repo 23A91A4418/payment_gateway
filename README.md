@@ -1,183 +1,328 @@
-Payment Gateway System with Hosted Checkout
+# Payment Gateway System
 
-This repository contains a complete, Dockerized payment gateway implementation inspired by real-world platforms such as Stripe and Razorpay.
-The system supports merchant authentication, order creation, multi-method payment processing (UPI and Card), and a publicly accessible hosted checkout page, along with a merchant dashboard.
+A production-style payment gateway implementation with Orders, Payments, Refunds, asynchronous processing using Redis queues, and webhook delivery with retry handling. The project runs fully using Docker Compose and includes a hosted checkout page and a dashboard UI.
 
-The project focuses on backend correctness, payment lifecycle management, API security, and seamless frontend–backend integration.
+---
 
-Key Capabilities
+## Features
 
-Merchant authentication using API Key and API Secret
+### Core APIs
+- Orders API (create and fetch)
+- Payments API
+  - Protected merchant payments
+  - Public payments for checkout flow
+  - Asynchronous payment processing via worker
+- Refunds API
+  - Refund creation with validation
+  - Asynchronous refund processing via worker
 
-REST APIs for creating and querying orders
+### Reliability and Delivery
+- Redis + Bull queue-based background processing
+- Webhooks
+  - Event persistence in database
+  - HMAC SHA256 signature support
+  - Retry scheduling using `next_retry_at`
+  - Delivery status tracking (`pending`, `delivered`, `failed`)
+- Idempotency support for payment creation using `Idempotency-Key`
 
-Payment processing with:
+### Deployment
+- Docker Compose orchestration for:
+  - PostgreSQL
+  - Redis
+  - API service
+  - Worker service
+  - Dashboard UI
+  - Checkout UI
 
-UPI payments with strict VPA validation
+---
 
-Card payments with Luhn algorithm validation, expiry checks, and network detection
+## Tech Stack
 
-Public hosted checkout page for customer payments
+- Backend: Node.js, Express
+- Database: PostgreSQL
+- Queue: Redis + Bull
+- Webhook Delivery: Axios + HMAC SHA256
+- Containerization: Docker, Docker Compose
+- Frontend: React (Dashboard, Checkout Page)
 
-Merchant dashboard for viewing credentials and transaction statistics
+---
 
-Deterministic test mode for automated evaluation
+## Repository Structure
 
-Fully containerized setup using Docker Compose
+payment_gateway/
+backend/
+src/
+config/
+db.js
+controllers/
+orderController.js
+paymentController.js
+refundController.js
+testController.js
+middleware/
+authMiddleware.js
+routes/
+orderRoutes.js
+paymentRoutes.js
+refundRoutes.js
+testRoutes.js
+services/
+validationService.js
+webhookService.js
+index.js
+worker.js
+Dockerfile
+Dockerfile.worker
+package.json
+dashboard/
+checkout-page/
+docker-compose.yml
+README.md
 
-PostgreSQL persistence with automatic schema creation and seeding
 
-High-Level Architecture
-Core Components
+---
 
-Backend API (Node.js + Express)
-Handles authentication, order management, payment processing, and validation logic.
+## Prerequisites
 
-PostgreSQL Database
-Stores merchants, orders, and payments with proper relational integrity.
+- Docker Desktop
+- Git
 
-Merchant Dashboard (React + Nginx)
-Allows merchants to view API credentials, transaction metrics, and payment history.
+---
 
-Checkout Page (React + Nginx)
-Public-facing payment page used by customers to complete payments.
+## Running the Project (Docker)
 
-Docker-Based Deployment
-Requirements
+From the repository root:
 
-Docker
+```bash
+docker compose up --build
+Services:
 
-Docker Compose
+API: http://localhost:8000
 
-Running the Application
-docker-compose up -d --build
+Dashboard UI: http://localhost:3000
 
+Checkout UI: http://localhost:3001
 
-All services are started together with a single command.
+PostgreSQL: localhost:5432
 
-Exposed Services
-Component	Address
-Backend API	http://localhost:8000
+Redis: localhost:6379
 
-Merchant Dashboard	http://localhost:3000
+To stop:
 
-Checkout Page	http://localhost:3001
-Test Merchant Details
-
-A test merchant is automatically created when the backend starts.
-
-Email: test@example.com
-
-API Key: key_test_abc123
-
-API Secret: secret_test_xyz789
-
-No manual database setup or merchant creation is required.
-
-Environment Variables
-
-A sample environment configuration is provided in .env.example.
-It documents all environment variables used by the backend, including database connection details and test-mode flags.
-
-API Overview
+docker compose down
 Health Check
+curl http://localhost:8000/health
+Expected response contains:
 
-GET /health
+database: connected
 
-Returns system readiness and dependency status.
+redis: connected
+
+status: healthy
+
+Test Merchant Credentials
+A test merchant is seeded automatically.
+
+Fetch test merchant credentials:
+
+curl http://localhost:8000/api/v1/test/merchant
+Example response:
 
 {
-  "status": "healthy",
-  "database": "connected",
-  "redis": "connected",
-  "worker": "running",
-  "timestamp": "2026-01-10T12:30:00.000Z"
+  "id": "550e8400-e29b-41d4-a716-446655440000",
+  "email": "test@example.com",
+  "api_key": "key_test_abc123",
+  "api_secret": "secret_test_xyz789",
+  "seeded": true
 }
+These credentials are required for protected endpoints.
 
-Create Order (Authenticated)
-
-POST /api/v1/orders
-
-Headers
+API Authentication
+Protected endpoints require headers:
 
 X-Api-Key
 
 X-Api-Secret
 
-{
-  "amount": 50000,
-  "currency": "INR",
-  "receipt": "receipt_123",
-  "notes": {
-    "customer_name": "John Doe"
-  }
-}
+Example:
 
-Create Payment (Authenticated)
+-H "X-Api-Key: key_test_abc123"
+-H "X-Api-Secret: secret_test_xyz789"
+Public endpoints are designed for checkout use and do not require authentication.
 
-POST /api/v1/payments
+API Endpoints
+Orders
+Create Order (Protected)
+curl -X POST http://localhost:8000/api/v1/orders ^
+  -H "X-Api-Key: key_test_abc123" ^
+  -H "X-Api-Secret: secret_test_xyz789" ^
+  -H "Content-Type: application/json" ^
+  -d "{\"amount\":50000,\"currency\":\"INR\",\"receipt\":\"rcpt_123\"}"
+Get Order (Protected)
+curl -X GET http://localhost:8000/api/v1/orders/ORDER_ID ^
+  -H "X-Api-Key: key_test_abc123" ^
+  -H "X-Api-Secret: secret_test_xyz789"
+Get Order (Public)
+curl -X GET http://localhost:8000/api/v1/orders/ORDER_ID/public
+Payments
+Create Payment (Protected)
+curl -X POST http://localhost:8000/api/v1/payments ^
+  -H "X-Api-Key: key_test_abc123" ^
+  -H "X-Api-Secret: secret_test_xyz789" ^
+  -H "Content-Type: application/json" ^
+  -d "{\"order_id\":\"ORDER_ID\",\"method\":\"upi\",\"vpa\":\"user@paytm\"}"
+Create Payment (Public Checkout)
+curl -X POST http://localhost:8000/api/v1/payments/public ^
+  -H "Content-Type: application/json" ^
+  -d "{\"order_id\":\"ORDER_ID\",\"method\":\"upi\",\"vpa\":\"user@paytm\"}"
+Get Payment (Protected)
+curl -X GET http://localhost:8000/api/v1/payments/PAYMENT_ID ^
+  -H "X-Api-Key: key_test_abc123" ^
+  -H "X-Api-Secret: secret_test_xyz789"
+Get Payment (Public)
+curl -X GET http://localhost:8000/api/v1/payments/PAYMENT_ID/public
+List Payments (Protected)
+curl -X GET http://localhost:8000/api/v1/payments ^
+  -H "X-Api-Key: key_test_abc123" ^
+  -H "X-Api-Secret: secret_test_xyz789"
+Dashboard Stats (Protected)
+curl -X GET http://localhost:8000/api/v1/payments/dashboard-stats ^
+  -H "X-Api-Key: key_test_abc123" ^
+  -H "X-Api-Secret: secret_test_xyz789"
+Idempotency
+Payment creation supports idempotency using the Idempotency-Key header.
 
-UPI Payment
-{
-  "order_id": "order_xxxxxxxxxxxxxxxx",
-  "method": "upi",
-  "vpa": "user@paytm"
-}
+Example (Protected Payment):
 
-Card Payment
-{
-  "order_id": "order_xxxxxxxxxxxxxxxx",
-  "method": "card",
-  "card": {
-    "number": "4111111111111111",
-    "expiry_month": "12",
-    "expiry_year": "2026",
-    "cvv": "123",
-    "holder_name": "John Doe"
-  }
-}
+curl -X POST http://localhost:8000/api/v1/payments ^
+  -H "X-Api-Key: key_test_abc123" ^
+  -H "X-Api-Secret: secret_test_xyz789" ^
+  -H "Idempotency-Key: abc123" ^
+  -H "Content-Type: application/json" ^
+  -d "{\"order_id\":\"ORDER_ID\",\"method\":\"upi\",\"vpa\":\"user@paytm\"}"
+Running the same request again with the same idempotency key returns the same payment response.
 
-Hosted Checkout Flow
-Checkout URL Format
-http://localhost:3001/checkout?order_id=<ORDER_ID>
+To verify stored keys:
 
-Payment Flow
+docker exec -it pg_gateway psql -U gateway_user -d payment_gateway -c "SELECT key, merchant_id, expires_at FROM idempotency_keys;"
+Refunds
+Refunds are only allowed when:
 
-Checkout page fetches order details using a public API
+Payment exists and belongs to the merchant
 
-Customer selects UPI or Card payment method
+Payment status is success
 
-Payment is created and enters the processing state
+Refund amount does not exceed refundable balance
 
-Final status transitions to success or failed
+Create Refund (Protected)
+curl -X POST http://localhost:8000/api/v1/payments/PAYMENT_ID/refunds ^
+  -H "X-Api-Key: key_test_abc123" ^
+  -H "X-Api-Secret: secret_test_xyz789" ^
+  -H "Content-Type: application/json" ^
+  -d "{\"amount\":20000,\"reason\":\"customer requested\"}"
+Get Refund (Protected)
+curl -X GET http://localhost:8000/api/v1/refunds/REFUND_ID ^
+  -H "X-Api-Key: key_test_abc123" ^
+  -H "X-Api-Secret: secret_test_xyz789"
+Asynchronous Worker Processing
+Payments and refunds are processed asynchronously by the worker service.
 
-UI updates automatically based on payment status
+Payment is created with status pending
 
-All required data-test-id attributes are implemented to support automated UI testing.
+Worker updates payment status to success or failed
 
-Database Design
-Tables
+Refund is created with status pending
 
-merchants
+Worker updates refund status to processed
 
-orders
+View worker logs:
 
-payments
+docker logs -f gateway_worker
+Webhooks
+Webhook endpoints are stored per merchant in webhook_endpoints.
 
-Relationships
+Webhook events are stored in webhook_events and delivered by the worker:
 
-One merchant can create multiple orders
+Successful delivery updates status to delivered
 
-Each order can have multiple associated payments
+Failed delivery updates status to pending with next_retry_at
 
-Deterministic Test Mode
+Attempts are tracked in attempts
 
-To support predictable automated evaluation, the system includes a test mode:
+Delivery uses HMAC SHA256 signature
 
-TEST_MODE=true
-TEST_PAYMENT_SUCCESS=true
-TEST_PROCESSING_DELAY=1000
+Verify Webhook Endpoints
+docker exec -it pg_gateway psql -U gateway_user -d payment_gateway -c "SELECT id, merchant_id, url, secret, is_active, created_at FROM webhook_endpoints;"
+Verify Webhook Events
+docker exec -it pg_gateway psql -U gateway_user -d payment_gateway -c "SELECT id, event_type, status, attempts, last_error, next_retry_at FROM webhook_events ORDER BY id DESC LIMIT 10;"
+Webhook Headers Sent
+X-Webhook-Signature: HMAC SHA256 signature of payload
 
+X-Webhook-Event: event type
 
-When enabled, payment outcomes and delays become deterministic.
+Example event types:
+
+payment.success
+
+payment.failed
+
+refund.processed
+
+Testing Webhook Retry
+To test retry behavior:
+
+Set webhook URL to an invalid endpoint or one returning 404.
+
+Trigger a payment.
+
+Check webhook_events table and confirm:
+
+status remains pending
+
+attempts increases
+
+next_retry_at is scheduled
+
+Query:
+
+docker exec -it pg_gateway psql -U gateway_user -d payment_gateway -c "SELECT id, event_type, status, attempts, last_error, next_retry_at FROM webhook_events ORDER BY id DESC LIMIT 5;"
+Frontend Applications
+Dashboard
+URL: http://localhost:3000
+
+Displays merchant stats and transactions
+
+Checkout Page
+URL: http://localhost:3001
+
+Public flow using:
+
+GET order public endpoint
+
+POST payment public endpoint
+
+Poll payment status via public payment endpoint
+
+Common Issues
+Curl multi-line commands failing in Windows
+Use ^ for line continuation in CMD. Do not use \.
+
+Containers not starting cleanly
+Rebuild:
+
+docker compose down
+docker compose up --build
+
+Submission Notes
+This project demonstrates:
+
+API design for payment workflows
+
+background job processing using queues
+
+persistence and retry mechanisms for webhook delivery
+
+idempotency handling
+
+Dockerized local environment for evaluation
 

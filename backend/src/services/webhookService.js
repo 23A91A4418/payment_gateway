@@ -2,6 +2,8 @@ const crypto = require("crypto");
 const axios = require("axios");
 const { pool } = require("../config/db");
 
+const MAX_RETRIES = 5; // must stop after this
+
 function signPayload(payload, secret) {
   return crypto
     .createHmac("sha256", secret)
@@ -18,7 +20,19 @@ async function queueWebhookEvent(merchantId, eventType, payload) {
 }
 
 async function deliverWebhook(eventRow) {
-  const { id, merchant_id, event_type, payload } = eventRow;
+  const { id, merchant_id, event_type, payload, attempts } = eventRow;
+
+  // Stop if already max retries
+  if ((attempts || 0) >= MAX_RETRIES) {
+    await pool.query(
+      `UPDATE webhook_events
+       SET status='failed',
+           last_error='Max retries reached'
+       WHERE id=$1`,
+      [id]
+    );
+    return;
+  }
 
   const endpointRes = await pool.query(
     `SELECT url, secret
@@ -43,7 +57,7 @@ async function deliverWebhook(eventRow) {
   const endpoint = endpointRes.rows[0];
   const signature = signPayload(payload, endpoint.secret);
 
-  // ✅ Increment attempts at start of delivery (NO last_attempt_at)
+  // ✅ increment attempts BEFORE sending
   const attemptRes = await pool.query(
     `UPDATE webhook_events
      SET attempts = COALESCE(attempts,0) + 1
@@ -74,6 +88,19 @@ async function deliverWebhook(eventRow) {
       [id]
     );
   } catch (err) {
+    // If reached max retries after this attempt -> failed
+    if (currentAttempt >= MAX_RETRIES) {
+      await pool.query(
+        `UPDATE webhook_events
+         SET status='failed',
+             last_error=$2,
+             next_retry_at=NULL
+         WHERE id=$1`,
+        [id, err.message]
+      );
+      return;
+    }
+
     // retry schedule: 5s, 30s, 2m, 10m, 30m
     const delays = [5, 30, 120, 600, 1800];
     const delaySeconds = delays[Math.min(currentAttempt - 1, delays.length - 1)];
@@ -89,4 +116,4 @@ async function deliverWebhook(eventRow) {
   }
 }
 
-module.exports = { queueWebhookEvent, deliverWebhook };
+module.exports = { queueWebhookEvent, deliverWebhook, MAX_RETRIES };
