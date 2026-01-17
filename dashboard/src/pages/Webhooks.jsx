@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import "./Dashboard.css";
 
 const Webhooks = () => {
@@ -6,6 +6,12 @@ const Webhooks = () => {
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState("");
+
+  // Track retry state per row (so UI updates instantly)
+  const [retryingIds, setRetryingIds] = useState({});
+
+  // Prevent state updates after unmount
+  const isMountedRef = useRef(true);
 
   const fetchMerchant = async () => {
     const res = await fetch("http://localhost:8000/api/v1/test/merchant");
@@ -25,7 +31,10 @@ const Webhooks = () => {
     );
 
     if (!res.ok) throw new Error("Failed to fetch webhook logs");
+
     const data = await res.json();
+    if (!isMountedRef.current) return;
+
     setLogs(data.data || []);
   };
 
@@ -33,24 +42,67 @@ const Webhooks = () => {
     try {
       setLoading(true);
       setMsg("");
+
       const m = await fetchMerchant();
+      if (!isMountedRef.current) return;
+
       setMerchant(m);
       await fetchLogs(m);
     } catch (err) {
-      setMsg(err.message);
+      if (!isMountedRef.current) return;
+      setMsg(err.message || "Failed to load webhooks");
     } finally {
+      if (!isMountedRef.current) return;
       setLoading(false);
     }
   };
 
   useEffect(() => {
+    isMountedRef.current = true;
     loadAll();
+
+    return () => {
+      isMountedRef.current = false;
+    };
   }, []);
+
+  // Auto refresh logs for a few seconds after retry,
+  // so delivered status appears without manual reload.
+  const refreshAfterRetry = async (m) => {
+    // Try multiple times because worker may deliver after a short delay
+    const attempts = 6; // total ~12 seconds
+    for (let i = 0; i < attempts; i++) {
+      if (!isMountedRef.current) return;
+
+      await fetchLogs(m);
+
+      // wait 2 seconds
+      await new Promise((r) => setTimeout(r, 2000));
+    }
+  };
 
   const retryWebhook = async (id) => {
     if (!merchant) return;
+
+    // Instantly update UI so user sees pending without reload
+    setLogs((prev) =>
+      prev.map((w) =>
+        w.id === id
+          ? {
+              ...w,
+              status: "pending",
+              last_error: null,
+              next_retry_at: null,
+            }
+          : w
+      )
+    );
+
+    setRetryingIds((prev) => ({ ...prev, [id]: true }));
+
     try {
       setMsg("");
+
       const res = await fetch(
         `http://localhost:8000/api/v1/webhooks/${id}/retry`,
         {
@@ -62,7 +114,7 @@ const Webhooks = () => {
         }
       );
 
-      const data = await res.json();
+      const data = await res.json().catch(() => null);
 
       if (!res.ok) {
         setMsg(data?.error?.description || "Retry failed");
@@ -70,9 +122,17 @@ const Webhooks = () => {
       }
 
       setMsg(`Retry scheduled for webhook event ${id}`);
-      await fetchLogs(merchant);
+
+      // Refresh logs multiple times so delivered status updates automatically
+      await refreshAfterRetry(merchant);
     } catch (err) {
       setMsg("Retry failed");
+    } finally {
+      setRetryingIds((prev) => {
+        const copy = { ...prev };
+        delete copy[id];
+        return copy;
+      });
     }
   };
 
@@ -81,9 +141,7 @@ const Webhooks = () => {
       <h1 className="dashboard-title">Webhooks</h1>
 
       {msg && (
-        <div style={{ marginBottom: "20px", color: "#1f2937" }}>
-          {msg}
-        </div>
+        <div style={{ marginBottom: "20px", color: "#1f2937" }}>{msg}</div>
       )}
 
       <div className="credential-card" style={{ marginBottom: "24px" }}>
@@ -127,30 +185,39 @@ const Webhooks = () => {
                   <td colSpan="6">No webhook logs found</td>
                 </tr>
               ) : (
-                logs.map((w) => (
-                  <tr key={w.id} data-test-id="webhook-log-item">
-                    <td>{w.id}</td>
-                    <td data-test-id="webhook-event">{w.event_type}</td>
-                    <td data-test-id="webhook-status">{w.status}</td>
-                    <td data-test-id="webhook-attempts">{w.attempts}</td>
-                    <td style={{ maxWidth: "260px", wordBreak: "break-word" }}>
-                      {w.last_error || "-"}
-                    </td>
-                    <td>
-                      <button
-                        data-test-id="retry-webhook-button"
-                        onClick={() => retryWebhook(w.id)}
-                        style={{
-                          padding: "8px 12px",
-                          borderRadius: "6px",
-                          fontSize: "13px",
-                        }}
-                      >
-                        Retry
-                      </button>
-                    </td>
-                  </tr>
-                ))
+                logs.map((w) => {
+                  const isRetrying = !!retryingIds[w.id];
+                  const disableRetry =
+                    isRetrying || String(w.status).toLowerCase() === "pending";
+
+                  return (
+                    <tr key={w.id} data-test-id="webhook-log-item">
+                      <td>{w.id}</td>
+                      <td data-test-id="webhook-event">{w.event_type}</td>
+                      <td data-test-id="webhook-status">{w.status}</td>
+                      <td data-test-id="webhook-attempts">{w.attempts}</td>
+                      <td style={{ maxWidth: "260px", wordBreak: "break-word" }}>
+                        {w.last_error || "-"}
+                      </td>
+                      <td>
+                        <button
+                          data-test-id="retry-webhook-button"
+                          onClick={() => retryWebhook(w.id)}
+                          disabled={disableRetry}
+                          style={{
+                            padding: "8px 12px",
+                            borderRadius: "6px",
+                            fontSize: "13px",
+                            opacity: disableRetry ? 0.6 : 1,
+                            cursor: disableRetry ? "not-allowed" : "pointer",
+                          }}
+                        >
+                          {isRetrying ? "Retrying..." : "Retry"}
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>
