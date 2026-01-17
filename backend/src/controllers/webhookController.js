@@ -38,7 +38,10 @@ async function listWebhooks(req, res) {
   } catch (err) {
     console.error("listWebhooks error:", err);
     return res.status(500).json({
-      error: { code: "INTERNAL_SERVER_ERROR", description: "Failed to fetch webhook logs" },
+      error: {
+        code: "INTERNAL_SERVER_ERROR",
+        description: "Failed to fetch webhook logs",
+      },
     });
   }
 }
@@ -51,7 +54,7 @@ async function retryWebhook(req, res) {
     const webhookId = req.params.id;
 
     const findRes = await pool.query(
-      `SELECT id, merchant_id, status
+      `SELECT id, merchant_id, status, attempts
        FROM webhook_events
        WHERE id=$1`,
       [webhookId]
@@ -68,16 +71,21 @@ async function retryWebhook(req, res) {
     // ensure merchant can retry only their own webhook
     if (row.merchant_id !== merchantId) {
       return res.status(403).json({
-        error: { code: "AUTHORIZATION_ERROR", description: "Not allowed to retry this webhook" },
+        error: {
+          code: "AUTHORIZATION_ERROR",
+          description: "Not allowed to retry this webhook",
+        },
       });
     }
 
+    // ✅ DO NOT reset attempts
+    // just schedule it again
     await pool.query(
       `UPDATE webhook_events
        SET status='pending',
-           attempts=0,
            last_error=NULL,
-           next_retry_at=NULL
+           next_retry_at=NULL,
+           delivered_at=NULL
        WHERE id=$1`,
       [webhookId]
     );
