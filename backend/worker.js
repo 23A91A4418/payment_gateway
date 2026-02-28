@@ -8,14 +8,7 @@ const { pool } = require(dbPath);
 // Webhook service
 const { queueWebhookEvent, deliverWebhook } = require("./src/services/webhookService");
 
-const REDIS_URL = process.env.REDIS_URL || "redis://127.0.0.1:6379";
-
-console.log("Worker running... waiting for jobs");
-
-// ---------------- QUEUES ----------------
-const paymentQueue = new Queue("payment-queue", REDIS_URL);
-const refundQueue = new Queue("refund-queue", REDIS_URL);
-const webhookQueue = new Queue("webhook-queue", REDIS_URL);
+const { paymentQueue, refundQueue, webhookQueue } = require("./src/config/queues");
 
 // ================= PAYMENT PROCESSOR =================
 paymentQueue.process(async (job) => {

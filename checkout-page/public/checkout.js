@@ -7,9 +7,9 @@
 
       this.key = options.key;
       this.orderId = options.orderId;
-      this.onSuccess = options.onSuccess || function () {};
-      this.onFailure = options.onFailure || function () {};
-      this.onClose = options.onClose || function () {};
+      this.onSuccess = options.onSuccess || function () { };
+      this.onFailure = options.onFailure || function () { };
+      this.onClose = options.onClose || function () { };
 
       this.modalId = "payment-gateway-modal";
       this.messageHandler = this.handleMessage.bind(this);
@@ -26,8 +26,11 @@
       modal.setAttribute("data-test-id", "payment-modal");
 
       const iframeSrc =
-        `${this.checkoutOrigin}/checkout?order_id=${encodeURIComponent(this.orderId)}` +
+        `${this.checkoutOrigin}/checkout?order_id=${encodeURIComponent(
+          this.orderId
+        )}` +
         `&key=${encodeURIComponent(this.key)}` +
+        `&origin=${encodeURIComponent(window.location.origin)}` +
         `&embedded=true`;
 
       modal.innerHTML = `
@@ -35,43 +38,51 @@
           position: fixed;
           top: 0; left: 0;
           width: 100%; height: 100%;
-          background: rgba(0,0,0,0.5);
+          background: rgba(0,0,0,0.6);
+          backdrop-filter: blur(4px);
           display: flex;
           justify-content: center;
           align-items: center;
           z-index: 9999;
-          padding: 16px;
+          padding: 20px;
           box-sizing: border-box;
         ">
           <div class="modal-content" style="
             width: 100%;
-            max-width: 420px;
-            height: 100%;
-            max-height: 600px;
+            max-width: 480px;
+            height: 600px;
+            max-height: 90vh;
             background: #fff;
-            border-radius: 12px;
+            border-radius: 16px;
             position: relative;
             overflow: hidden;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            box-shadow: 0 20px 50px rgba(0,0,0,0.3);
+            display: flex;
+            flex-direction: column;
           ">
             <button data-test-id="close-modal-button" style="
               position: absolute;
-              top: 10px;
-              right: 10px;
+              top: 15px;
+              right: 15px;
               z-index: 10;
-              background: #fff;
-              border: 1px solid #ccc;
-              border-radius: 8px;
-              padding: 6px 10px;
+              background: rgba(255,255,255,0.8);
+              border: none;
+              border-radius: 50%;
+              width: 32px;
+              height: 32px;
+              display: flex;
+              align-items: center;
+              justify-content: center;
               cursor: pointer;
-              font-size: 18px;
-              line-height: 1;
+              font-size: 24px;
+              color: #333;
+              box-shadow: 0 2px 4px rgba(0,0,0,0.1);
             ">×</button>
 
             <iframe
               data-test-id="payment-iframe"
               src="${iframeSrc}"
-              style="width:100%;height:100%;border:none;"
+              style="width: 100%; height: 100%; border: none;"
             ></iframe>
           </div>
         </div>

@@ -54,13 +54,15 @@ const Checkout = () => {
   useEffect(() => {
     if (!isEmbedded) return;
 
+    const targetOrigin = searchParams.get("origin") || "*";
+
     if (paymentStatus === "success") {
       window.parent.postMessage(
         {
           type: "payment_success",
           data: { paymentId },
         },
-        "*"
+        targetOrigin
       );
     }
 
@@ -70,10 +72,10 @@ const Checkout = () => {
           type: "payment_failed",
           data: { paymentId },
         },
-        "*"
+        targetOrigin
       );
     }
-  }, [paymentStatus, paymentId, isEmbedded]);
+  }, [paymentStatus, paymentId, isEmbedded, searchParams]);
 
   const fetchOrder = async () => {
     try {

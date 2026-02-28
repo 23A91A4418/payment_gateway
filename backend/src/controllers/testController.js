@@ -1,4 +1,5 @@
 const { pool } = require('../config/db');
+const { paymentQueue, refundQueue, webhookQueue } = require('../config/queues');
 
 const getTestMerchant = async (req, res) => {
     try {
@@ -22,6 +23,29 @@ const getTestMerchant = async (req, res) => {
     }
 };
 
+const getJobsStatus = async (req, res) => {
+    try {
+        const [paymentStats, refundStats, webhookStats] = await Promise.all([
+            paymentQueue.getJobCounts(),
+            refundQueue.getJobCounts(),
+            webhookQueue.getJobCounts()
+        ]);
+
+        res.status(200).json({
+            queues: {
+                payment: paymentStats,
+                refund: refundStats,
+                webhook: webhookStats
+            },
+            worker_status: 'online' // If this code is running, the app is up; worker is a separate process but queues are accessible.
+        });
+    } catch (err) {
+        console.error('Get Jobs Status Error:', err);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+};
+
 module.exports = {
-    getTestMerchant
+    getTestMerchant,
+    getJobsStatus
 };

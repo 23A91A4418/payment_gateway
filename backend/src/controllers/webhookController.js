@@ -1,8 +1,6 @@
 const { pool } = require("../config/db");
-const Queue = require("bull");
-
-const REDIS_URL = process.env.REDIS_URL || "redis://127.0.0.1:6379";
-const webhookQueue = new Queue("webhook-queue", REDIS_URL);
+const { webhookQueue } = require("../config/queues");
+const crypto = require("crypto");
 
 // GET /api/v1/webhooks?limit=10&offset=0
 // Auth required (merchant)
@@ -106,7 +104,57 @@ async function retryWebhook(req, res) {
   }
 }
 
+async function getConfig(req, res) {
+  try {
+    const merchantId = req.merchant.id;
+    const result = await pool.query(
+      "SELECT webhook_url, webhook_secret FROM merchants WHERE id = $1",
+      [merchantId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: "Merchant not found" });
+    }
+
+    return res.status(200).json(result.rows[0]);
+  } catch (err) {
+    console.error("getConfig error:", err);
+    return res.status(500).json({ error: "Internal Server Error" });
+  }
+}
+
+async function updateConfig(req, res) {
+  try {
+    const merchantId = req.merchant.id;
+    const { url, regenerate_secret } = req.body;
+
+    let query = "UPDATE merchants SET updated_at = CURRENT_TIMESTAMP";
+    const params = [merchantId];
+
+    if (url !== undefined) {
+      query += ", webhook_url = $" + (params.length + 1);
+      params.push(url);
+    }
+
+    if (regenerate_secret) {
+      const newSecret = "whsec_" + crypto.randomBytes(16).toString("hex");
+      query += ", webhook_secret = $" + (params.length + 1);
+      params.push(newSecret);
+    }
+
+    query += " WHERE id = $1 RETURNING webhook_url, webhook_secret";
+
+    const result = await pool.query(query, params);
+    return res.status(200).json(result.rows[0]);
+  } catch (err) {
+    console.error("updateConfig error:", err);
+    return res.status(500).json({ error: "Internal Server Error" });
+  }
+}
+
 module.exports = {
   listWebhooks,
   retryWebhook,
+  getConfig,
+  updateConfig,
 };

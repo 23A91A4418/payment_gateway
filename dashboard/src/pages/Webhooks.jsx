@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import "./Dashboard.css";
 
 const Webhooks = () => {
@@ -9,9 +10,13 @@ const Webhooks = () => {
 
   // Track retry state per row (so UI updates instantly)
   const [retryingIds, setRetryingIds] = useState({});
-
   // Prevent state updates after unmount
   const isMountedRef = useRef(true);
+
+  const [config, setConfig] = useState({ url: "", secret: "" });
+  const [saving, setSaving] = useState(false);
+
+  const navigate = useNavigate();
 
   const fetchMerchant = async () => {
     const res = await fetch("http://localhost:8000/api/v1/test/merchant");
@@ -38,6 +43,58 @@ const Webhooks = () => {
     setLogs(data.data || []);
   };
 
+  const fetchConfig = async (m) => {
+    try {
+      const res = await fetch("http://localhost:8000/api/v1/webhooks/config", {
+        headers: {
+          "X-Api-Key": m.api_key,
+          "X-Api-Secret": m.api_secret,
+        },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (isMountedRef.current) {
+          setConfig({ url: data.webhook_url || "", secret: data.webhook_secret || "" });
+        }
+      }
+    } catch (err) {
+      console.error("fetchConfig error:", err);
+    }
+  };
+
+  const updateConfig = async (regenerate = false) => {
+    if (!merchant) return;
+    try {
+      setSaving(true);
+      const res = await fetch("http://localhost:8000/api/v1/webhooks/config", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Api-Key": merchant.api_key,
+          "X-Api-Secret": merchant.api_secret,
+        },
+        body: JSON.stringify({
+          url: config.url,
+          regenerate_secret: regenerate,
+        }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        if (isMountedRef.current) {
+          setConfig({ url: data.webhook_url || "", secret: data.webhook_secret || "" });
+          setMsg(regenerate ? "Secret regenerated successfully" : "Configuration saved successfully");
+        }
+      } else {
+        if (isMountedRef.current) setMsg("Failed to update configuration");
+      }
+    } catch (err) {
+      if (isMountedRef.current) setMsg("Error saving configuration");
+    } finally {
+      if (isMountedRef.current) setSaving(false);
+    }
+  };
+
   const loadAll = async () => {
     try {
       setLoading(true);
@@ -47,7 +104,7 @@ const Webhooks = () => {
       if (!isMountedRef.current) return;
 
       setMerchant(m);
-      await fetchLogs(m);
+      await Promise.all([fetchLogs(m), fetchConfig(m)]);
     } catch (err) {
       if (!isMountedRef.current) return;
       setMsg(err.message || "Failed to load webhooks");
@@ -66,17 +123,11 @@ const Webhooks = () => {
     };
   }, []);
 
-  // Auto refresh logs for a few seconds after retry,
-  // so delivered status appears without manual reload.
   const refreshAfterRetry = async (m) => {
-    // Try multiple times because worker may deliver after a short delay
-    const attempts = 6; // total ~12 seconds
+    const attempts = 6;
     for (let i = 0; i < attempts; i++) {
       if (!isMountedRef.current) return;
-
       await fetchLogs(m);
-
-      // wait 2 seconds
       await new Promise((r) => setTimeout(r, 2000));
     }
   };
@@ -84,16 +135,15 @@ const Webhooks = () => {
   const retryWebhook = async (id) => {
     if (!merchant) return;
 
-    // Instantly update UI so user sees pending without reload
     setLogs((prev) =>
       prev.map((w) =>
         w.id === id
           ? {
-              ...w,
-              status: "pending",
-              last_error: null,
-              next_retry_at: null,
-            }
+            ...w,
+            status: "pending",
+            last_error: null,
+            next_retry_at: null,
+          }
           : w
       )
     );
@@ -102,7 +152,6 @@ const Webhooks = () => {
 
     try {
       setMsg("");
-
       const res = await fetch(
         `http://localhost:8000/api/v1/webhooks/${id}/retry`,
         {
@@ -117,22 +166,22 @@ const Webhooks = () => {
       const data = await res.json().catch(() => null);
 
       if (!res.ok) {
-        setMsg(data?.error?.description || "Retry failed");
+        if (isMountedRef.current) setMsg(data?.error?.description || "Retry failed");
         return;
       }
 
-      setMsg(`Retry scheduled for webhook event ${id}`);
-
-      // Refresh logs multiple times so delivered status updates automatically
+      if (isMountedRef.current) setMsg(`Retry scheduled for webhook event ${id}`);
       await refreshAfterRetry(merchant);
     } catch (err) {
-      setMsg("Retry failed");
+      if (isMountedRef.current) setMsg("Retry failed");
     } finally {
-      setRetryingIds((prev) => {
-        const copy = { ...prev };
-        delete copy[id];
-        return copy;
-      });
+      if (isMountedRef.current) {
+        setRetryingIds((prev) => {
+          const copy = { ...prev };
+          delete copy[id];
+          return copy;
+        });
+      }
     }
   };
 
@@ -140,25 +189,72 @@ const Webhooks = () => {
     <div className="dashboard" data-test-id="webhook-config">
       <h1 className="dashboard-title">Webhooks</h1>
 
+      <button
+        className="login-button"
+        style={{ marginBottom: "20px", maxWidth: "200px" }}
+        onClick={() => navigate("/dashboard")}
+      >
+        Back to Dashboard
+      </button>
+
       {msg && (
-        <div style={{ marginBottom: "20px", color: "#1f2937" }}>{msg}</div>
+        <div style={{ marginBottom: "20px", padding: '10px', background: 'rgba(255,255,255,0.1)', borderRadius: '4px' }}>{msg}</div>
       )}
 
       <div className="credential-card" style={{ marginBottom: "24px" }}>
         <h3 style={{ marginBottom: "10px" }}>Webhook Configuration</h3>
 
-        <div style={{ fontSize: "14px", color: "#6b7280" }}>
-          Current URL is configured in backend table <b>webhook_endpoints</b>.
-        </div>
-
-        {merchant && (
-          <div style={{ marginTop: "14px" }}>
-            <div style={{ fontSize: "13px", color: "#6b7280" }}>Secret</div>
-            <div style={{ fontFamily: "monospace", marginTop: "6px" }}>
-              whsec_test_123
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+          <div>
+            <label style={{ display: 'block', fontSize: '13px', color: '#6b7280', marginBottom: '5px' }}>Webhook URL</label>
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <input
+                type="text"
+                value={config.url}
+                onChange={(e) => setConfig({ ...config, url: e.target.value })}
+                placeholder="https://your-site.com/webhooks"
+                style={{
+                  flex: 1,
+                  padding: '8px 12px',
+                  borderRadius: '6px',
+                  background: '#1e1e1e',
+                  border: '1px solid #333',
+                  color: '#fff'
+                }}
+              />
+              <button
+                className="login-button"
+                onClick={() => updateConfig(false)}
+                disabled={saving}
+                style={{ width: 'auto', padding: '0 20px', margin: 0 }}
+              >
+                {saving ? "Saving..." : "Save"}
+              </button>
             </div>
           </div>
-        )}
+
+          <div>
+            <label style={{ display: 'block', fontSize: '13px', color: '#6b7280', marginBottom: '5px' }}>Webhook Secret</label>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', background: '#1e1e1e', padding: '8px 12px', borderRadius: '6px', border: '1px solid #333' }}>
+              <span style={{ fontFamily: 'monospace', flex: 1 }}>{config.secret || 'Not set'}</span>
+              <button
+                onClick={() => updateConfig(true)}
+                disabled={saving}
+                style={{
+                  background: 'transparent',
+                  border: '1px solid #4facfe',
+                  color: '#4facfe',
+                  padding: '4px 10px',
+                  borderRadius: '4px',
+                  fontSize: '12px',
+                  cursor: 'pointer'
+                }}
+              >
+                Regenerate
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
 
       <div className="credential-card">

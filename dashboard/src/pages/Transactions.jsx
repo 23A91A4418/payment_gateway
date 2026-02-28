@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import "./Transactions.css";
 
 const Transactions = () => {
+    const navigate = useNavigate();
     const [transactions, setTransactions] = useState([]);
 
     useEffect(() => {
@@ -13,7 +15,7 @@ const Transactions = () => {
                 const merchant = await merchantRes.json();
 
                 const apiKey = merchant.api_key;
-                const apiSecret = merchant.api_secret || 'secret_test_xyz789';
+                const apiSecret = merchant.api_secret;
 
                 // 2. Fetch Transactions
                 const res = await fetch('http://localhost:8000/api/v1/payments', {
@@ -35,8 +37,15 @@ const Transactions = () => {
     }, []);
 
     return (
-        <div style={{ padding: '40px' }}>
+        <div style={{ padding: '40px' }} className="dashboard">
             <h1 style={{ marginBottom: '20px' }}>Transactions</h1>
+            <button
+                className="login-button"
+                style={{ marginBottom: '20px', maxWidth: '200px' }}
+                onClick={() => navigate('/dashboard')}
+            >
+                Back to Dashboard
+            </button>
             <table data-test-id="transactions-table">
                 <thead>
                     <tr>

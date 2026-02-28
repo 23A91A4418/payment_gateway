@@ -94,12 +94,19 @@ const Dashboard = () => {
                 View Transactions
             </button>
             <button
-  className="login-button"
-  style={{ marginTop: "15px", maxWidth: "200px" }}
-  onClick={() => navigate("/dashboard/webhooks")}
->
-  Webhook Logs
-</button>
+                className="login-button"
+                style={{ marginTop: "15px", maxWidth: "200px" }}
+                onClick={() => navigate("/dashboard/webhooks")}
+            >
+                Webhook Logs
+            </button>
+            <button
+                className="login-button"
+                style={{ marginTop: "15px", maxWidth: "200px" }}
+                onClick={() => navigate("/dashboard/docs")}
+            >
+                API Documentation
+            </button>
 
         </div>
     );

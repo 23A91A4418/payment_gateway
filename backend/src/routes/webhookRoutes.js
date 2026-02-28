@@ -1,11 +1,16 @@
 const express = require("express");
 const router = express.Router();
 
-const { listWebhooks, retryWebhook } = require("../controllers/webhookController");
+const { listWebhooks, retryWebhook, getConfig, updateConfig } = require("../controllers/webhookController");
 
-// IMPORTANT: use your existing auth middleware file name
-// You currently have authMiddleware.js (not auth.middleware.js)
+// ... (rest of middleware import)
 const authMiddleware = require("../middleware/authMiddleware");
+
+// GET config
+router.get("/config", authMiddleware, getConfig);
+
+// UPDATE config
+router.post("/config", authMiddleware, updateConfig);
 
 // GET logs
 router.get("/", authMiddleware, listWebhooks);
