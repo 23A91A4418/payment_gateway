@@ -108,12 +108,15 @@ async function getConfig(req, res) {
   try {
     const merchantId = req.merchant.id;
     const result = await pool.query(
-      "SELECT webhook_url, webhook_secret FROM merchants WHERE id = $1",
+      `SELECT url as webhook_url, secret as webhook_secret 
+       FROM webhook_endpoints 
+       WHERE merchant_id = $1 AND is_active = true 
+       ORDER BY created_at DESC LIMIT 1`,
       [merchantId]
     );
 
     if (result.rows.length === 0) {
-      return res.status(404).json({ error: "Merchant not found" });
+      return res.status(200).json({ webhook_url: "", webhook_secret: "" });
     }
 
     return res.status(200).json(result.rows[0]);
@@ -124,31 +127,49 @@ async function getConfig(req, res) {
 }
 
 async function updateConfig(req, res) {
+  const client = await pool.connect();
   try {
     const merchantId = req.merchant.id;
     const { url, regenerate_secret } = req.body;
 
-    let query = "UPDATE merchants SET updated_at = CURRENT_TIMESTAMP";
-    const params = [merchantId];
+    await client.query("BEGIN");
 
-    if (url !== undefined) {
-      query += ", webhook_url = $" + (params.length + 1);
-      params.push(url);
+    // Get current endpoint
+    const currentRes = await client.query(
+      "SELECT url, secret FROM webhook_endpoints WHERE merchant_id = $1 AND is_active = true ORDER BY created_at DESC LIMIT 1",
+      [merchantId]
+    );
+
+    const current = currentRes.rows[0] || { url: "", secret: "" };
+    const newUrl = url !== undefined ? url : current.url;
+    let newSecret = current.secret;
+
+    if (regenerate_secret || !newSecret) {
+      newSecret = "whsec_" + crypto.randomBytes(16).toString("hex");
     }
 
-    if (regenerate_secret) {
-      const newSecret = "whsec_" + crypto.randomBytes(16).toString("hex");
-      query += ", webhook_secret = $" + (params.length + 1);
-      params.push(newSecret);
-    }
+    // Inactivate old endpoints
+    await client.query(
+      "UPDATE webhook_endpoints SET is_active = false WHERE merchant_id = $1",
+      [merchantId]
+    );
 
-    query += " WHERE id = $1 RETURNING webhook_url, webhook_secret";
+    // Insert new endpoint
+    const insertRes = await client.query(
+      `INSERT INTO webhook_endpoints (merchant_id, url, secret, is_active)
+       VALUES ($1, $2, $3, true)
+       RETURNING url as webhook_url, secret as webhook_secret`,
+      [merchantId, newUrl, newSecret]
+    );
 
-    const result = await pool.query(query, params);
-    return res.status(200).json(result.rows[0]);
+    await client.query("COMMIT");
+    return res.status(200).json(insertRes.rows[0]);
   } catch (err) {
+    await client.query("ROLLBACK");
     console.error("updateConfig error:", err);
     return res.status(500).json({ error: "Internal Server Error" });
+  } finally {
+    client.release();
   }
 }
 
