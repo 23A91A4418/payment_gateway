@@ -30,51 +30,57 @@ const Docs = () => {
                 <h2>Create Order</h2>
                 <p><code>POST /api/v1/orders</code></p>
                 <div className="code-block">
-                    <pre>{`{
+                    <pre>{`curl --request POST \\
+  --url http://localhost:8000/api/v1/orders \\
+  --header 'Content-Type: application/json' \\
+  --header 'X-Api-Key: YOUR_API_KEY' \\
+  --header 'X-Api-Secret: YOUR_API_SECRET' \\
+  --data '{
   "amount": 50000,
   "currency": "INR",
-  "receipt": "receipt_123",
+  "receipt": "receipt_order_123",
   "notes": {
-    "customer_name": "John Doe"
+    "merchant_order_id": "67890"
   }
-}`}</pre>
+}'`}</pre>
                 </div>
             </section>
 
             <section className="doc-section">
                 <h2>SDK Integration</h2>
-                <p>Include the following script in your page:</p>
+                <p>Include the script and initialize the checkout component:</p>
                 <div className="code-block">
-                    <code>{`<script src="http://localhost:3000/checkout.js"></script>`}</code>
-                </div>
-                <p>Initialize and open the checkout modal:</p>
-                <div className="code-block">
-                    <pre>{`const options = {
-  key: "key_test_abc123",
-  orderId: "order_AbCdEfGhIjKlMnOp",
-  onSuccess: (data) => console.log("Success!", data),
-  onFailure: (data) => console.log("Failed!", data),
-  onClose: () => console.log("Modal closed")
-};
-const pg = new PaymentGateway(options);
-pg.open();`}</pre>
+                    <pre>{`<script src="http://localhost:3001/checkout.js"></script>
+
+<script>
+  const options = {
+    key: "YOUR_API_KEY",
+    orderId: "order_AbCdEfGhIjKlMnOp",
+    onSuccess: (data) => {
+      console.log("Payment Successful", data.payment_id);
+    },
+    onFailure: (data) => {
+      console.log("Payment Failed", data.error);
+    }
+  };
+  const pg = new PaymentGateway(options);
+  pg.open();
+</script>`}</pre>
                 </div>
             </section>
 
             <section className="doc-section">
-                <h2>Verify Webhook Signature</h2>
-                <p>Webhooks are sent as POST requests with an <code>X-Webhook-Signature</code> header.</p>
-                <p>Verify the signature using HMAC-SHA256 with your webhook secret:</p>
+                <h2>Webhook Verification (HMAC-SHA256)</h2>
+                <p>Verify signatures using your Webhook Secret:</p>
                 <div className="code-block">
                     <pre>{`const crypto = require('crypto');
-const signature = req.headers['x-webhook-signature'];
-const expectedSignature = crypto
-  .createHmac('sha256', WEBHOOK_SECRET)
-  .update(JSON.stringify(req.body))
-  .digest('hex');
 
-if (signature === expectedSignature) {
-  // Valid signature
+function verifySignature(payload, signature, secret) {
+  const expected = crypto
+    .createHmac('sha256', secret)
+    .update(JSON.stringify(payload))
+    .digest('hex');
+  return expected === signature;
 }`}</pre>
                 </div>
             </section>

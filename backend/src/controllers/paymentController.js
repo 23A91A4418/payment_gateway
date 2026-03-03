@@ -317,7 +317,7 @@ const getPaymentPublic = async (req, res) => {
 
   try {
     const result = await pool.query(
-      "SELECT id, order_id, amount, currency, method, status, vpa, card_network, card_last4, created_at FROM payments WHERE id = $1",
+      "SELECT id, order_id, amount, currency, method, status, vpa, card_network, card_last4, captured, created_at FROM payments WHERE id = $1",
       [paymentId]
     );
 
@@ -375,6 +375,45 @@ const getDashboardStats = async (req, res) => {
   }
 };
 
+const capturePayment = async (req, res) => {
+  const { paymentId } = req.params;
+  const merchantId = req.merchant.id;
+
+  try {
+    const result = await pool.query(
+      "SELECT * FROM payments WHERE id = $1 AND merchant_id = $2",
+      [paymentId, merchantId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        error: { code: "NOT_FOUND_ERROR", description: "Payment not found" },
+      });
+    }
+
+    const payment = result.rows[0];
+
+    if (payment.status !== "success") {
+      return res.status(400).json({
+        error: {
+          code: "BAD_REQUEST_ERROR",
+          description: "Payment not in capturable state",
+        },
+      });
+    }
+
+    const updateRes = await pool.query(
+      "UPDATE payments SET captured = TRUE, updated_at = CURRENT_TIMESTAMP WHERE id = $1 RETURNING *",
+      [paymentId]
+    );
+
+    res.status(200).json(updateRes.rows[0]);
+  } catch (err) {
+    console.error("Capture Payment Error:", err);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+};
+
 module.exports = {
   createPayment,
   getPayment,
@@ -382,4 +421,5 @@ module.exports = {
   getPaymentPublic,
   listPayments,
   getDashboardStats,
+  capturePayment,
 };

@@ -23,7 +23,7 @@
 
       const modal = document.createElement("div");
       modal.id = this.modalId;
-      modal.setAttribute("data-test-id", "payment-modal");
+      modal.setAttribute("data-testid", "payment-modal");
 
       const iframeSrc =
         `${this.checkoutOrigin}/checkout?order_id=${encodeURIComponent(
@@ -60,7 +60,7 @@
             display: flex;
             flex-direction: column;
           ">
-            <button data-test-id="close-modal-button" style="
+            <button data-testid="close-modal-button" style="
               position: absolute;
               top: 15px;
               right: 15px;
@@ -80,7 +80,7 @@
             ">×</button>
 
             <iframe
-              data-test-id="payment-iframe"
+              data-testid="payment-iframe"
               src="${iframeSrc}"
               style="width: 100%; height: 100%; border: none;"
             ></iframe>
@@ -90,7 +90,7 @@
 
       document.body.appendChild(modal);
 
-      const closeBtn = modal.querySelector('[data-test-id="close-modal-button"]');
+      const closeBtn = modal.querySelector('[data-testid="close-modal-button"]');
       closeBtn.addEventListener("click", () => this.close());
 
       window.addEventListener("message", this.messageHandler);

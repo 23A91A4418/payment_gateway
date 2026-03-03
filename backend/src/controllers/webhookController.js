@@ -76,11 +76,11 @@ async function retryWebhook(req, res) {
       });
     }
 
-    // ✅ DO NOT reset attempts
-    // just schedule it again
+    // ✅ Reset attempts to 0 for manual retry as per SPEC
     await pool.query(
       `UPDATE webhook_logs
        SET status='pending',
+           attempts=0,
            response_body=NULL,
            next_retry_at=NULL
        WHERE id=$1`,
@@ -172,9 +172,42 @@ async function updateConfig(req, res) {
   }
 }
 
+async function sendTestWebhook(req, res) {
+  try {
+    const merchantId = req.merchant.id;
+
+    // Enqueue a dummy webhook event
+    const dummyPayload = {
+      event: "payment.success",
+      timestamp: Math.floor(Date.now() / 1000),
+      data: {
+        payment: {
+          id: "pay_test_dummy_123",
+          order_id: "order_test_dummy_123",
+          amount: 5000,
+          currency: "INR",
+          method: "card",
+          status: "success",
+          created_at: new Date().toISOString(),
+        },
+      },
+    };
+
+    const QueueService = require("../services/webhookService");
+    await QueueService.queueWebhookEvent(merchantId, "payment.success", dummyPayload);
+    await webhookQueue.add({ merchantId });
+
+    return res.status(200).json({ message: "Test webhook scheduled" });
+  } catch (err) {
+    console.error("sendTestWebhook error:", err);
+    return res.status(500).json({ error: "Internal Server Error" });
+  }
+}
+
 module.exports = {
   listWebhooks,
   retryWebhook,
   getConfig,
   updateConfig,
+  sendTestWebhook,
 };

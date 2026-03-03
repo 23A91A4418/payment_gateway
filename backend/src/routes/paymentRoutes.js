@@ -16,5 +16,6 @@ router.get("/dashboard-stats", authMiddleware, paymentController.getDashboardSta
 router.post("/", authMiddleware, paymentController.createPayment);
 router.get("/", authMiddleware, paymentController.listPayments);
 router.get("/:paymentId", authMiddleware, paymentController.getPayment);
+router.post("/:paymentId/capture", authMiddleware, paymentController.capturePayment);
 
 module.exports = router;

@@ -45,6 +45,7 @@ CREATE TABLE IF NOT EXISTS payments (
     card_last4 VARCHAR(4),
     error_code VARCHAR(50),
     error_description TEXT,
+    captured BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -93,7 +94,7 @@ CREATE INDEX IF NOT EXISTS idx_webhook_endpoints_merchant ON webhook_endpoints(m
 
 -- Webhook Logs Table (Aligned with evaluator requirements)
 CREATE TABLE IF NOT EXISTS webhook_logs (
-    id SERIAL PRIMARY KEY,
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     merchant_id UUID NOT NULL REFERENCES merchants(id),
     event VARCHAR(50) NOT NULL, -- renamed from event_type
     payload JSONB NOT NULL,

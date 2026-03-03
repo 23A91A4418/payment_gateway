@@ -1,7 +1,7 @@
 const express = require("express");
 const router = express.Router();
 
-const { listWebhooks, retryWebhook, getConfig, updateConfig } = require("../controllers/webhookController");
+const { listWebhooks, retryWebhook, getConfig, updateConfig, sendTestWebhook } = require("../controllers/webhookController");
 
 // ... (rest of middleware import)
 const authMiddleware = require("../middleware/authMiddleware");
@@ -17,5 +17,8 @@ router.get("/", authMiddleware, listWebhooks);
 
 // manual retry
 router.post("/:id/retry", authMiddleware, retryWebhook);
+
+// test webhook
+router.post("/test-webhook", authMiddleware, sendTestWebhook);
 
 module.exports = router;

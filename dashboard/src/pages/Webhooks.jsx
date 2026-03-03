@@ -185,8 +185,30 @@ const Webhooks = () => {
     }
   };
 
+  const sendTestWebhook = async () => {
+    if (!merchant) return;
+    try {
+      setMsg("Sending test webhook...");
+      const res = await fetch("http://localhost:8000/api/v1/webhooks/test-webhook", {
+        method: "POST",
+        headers: {
+          "X-Api-Key": merchant.api_key,
+          "X-Api-Secret": merchant.api_secret,
+        },
+      });
+      if (res.ok) {
+        setMsg("Test webhook scheduled successfully");
+        fetchLogs(merchant);
+      } else {
+        setMsg("Failed to send test webhook");
+      }
+    } catch (err) {
+      setMsg("Error sending test webhook");
+    }
+  };
+
   return (
-    <div className="dashboard" data-test-id="webhook-config">
+    <div className="dashboard" data-testid="webhook-config">
       <h1 className="dashboard-title">Webhooks</h1>
 
       <button
@@ -204,57 +226,75 @@ const Webhooks = () => {
       <div className="credential-card" style={{ marginBottom: "24px" }}>
         <h3 style={{ marginBottom: "10px" }}>Webhook Configuration</h3>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-          <div>
-            <label style={{ display: 'block', fontSize: '13px', color: '#6b7280', marginBottom: '5px' }}>Webhook URL</label>
+        <form data-testid="webhook-config-form" onSubmit={(e) => { e.preventDefault(); updateConfig(false); }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+            <div>
+              <label style={{ display: 'block', fontSize: '13px', color: '#6b7280', marginBottom: '5px' }}>Webhook URL</label>
+              <div style={{ display: 'flex', gap: '10px' }}>
+                <input
+                  data-testid="webhook-url-input"
+                  type="text"
+                  value={config.url}
+                  onChange={(e) => setConfig({ ...config, url: e.target.value })}
+                  placeholder="https://your-site.com/webhooks"
+                  style={{
+                    flex: 1,
+                    padding: '8px 12px',
+                    borderRadius: '6px',
+                    background: '#1e1e1e',
+                    border: '1px solid #333',
+                    color: '#fff'
+                  }}
+                />
+              </div>
+            </div>
+
+            <div>
+              <label style={{ display: 'block', fontSize: '13px', color: '#6b7280', marginBottom: '5px' }}>Webhook Secret</label>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', background: '#1e1e1e', padding: '8px 12px', borderRadius: '6px', border: '1px solid #333' }}>
+                <span data-testid="webhook-secret" style={{ fontFamily: 'monospace', flex: 1 }}>{config.secret || 'Not set'}</span>
+                <button
+                  type="button"
+                  data-testid="regenerate-secret-button"
+                  onClick={() => updateConfig(true)}
+                  disabled={saving}
+                  style={{
+                    background: 'transparent',
+                    border: '1px solid #4facfe',
+                    color: '#4facfe',
+                    padding: '4px 10px',
+                    borderRadius: '4px',
+                    fontSize: '12px',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Regenerate
+                </button>
+              </div>
+            </div>
+
             <div style={{ display: 'flex', gap: '10px' }}>
-              <input
-                type="text"
-                value={config.url}
-                onChange={(e) => setConfig({ ...config, url: e.target.value })}
-                placeholder="https://your-site.com/webhooks"
-                style={{
-                  flex: 1,
-                  padding: '8px 12px',
-                  borderRadius: '6px',
-                  background: '#1e1e1e',
-                  border: '1px solid #333',
-                  color: '#fff'
-                }}
-              />
               <button
+                type="submit"
+                data-testid="save-webhook-button"
                 className="login-button"
-                onClick={() => updateConfig(false)}
                 disabled={saving}
                 style={{ width: 'auto', padding: '0 20px', margin: 0 }}
               >
-                {saving ? "Saving..." : "Save"}
+                {saving ? "Saving..." : "Save Configuration"}
               </button>
-            </div>
-          </div>
-
-          <div>
-            <label style={{ display: 'block', fontSize: '13px', color: '#6b7280', marginBottom: '5px' }}>Webhook Secret</label>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', background: '#1e1e1e', padding: '8px 12px', borderRadius: '6px', border: '1px solid #333' }}>
-              <span style={{ fontFamily: 'monospace', flex: 1 }}>{config.secret || 'Not set'}</span>
               <button
-                onClick={() => updateConfig(true)}
-                disabled={saving}
-                style={{
-                  background: 'transparent',
-                  border: '1px solid #4facfe',
-                  color: '#4facfe',
-                  padding: '4px 10px',
-                  borderRadius: '4px',
-                  fontSize: '12px',
-                  cursor: 'pointer'
-                }}
+                type="button"
+                data-testid="test-webhook-button"
+                className="login-button"
+                onClick={sendTestWebhook}
+                style={{ width: 'auto', padding: '0 20px', margin: 0, background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' }}
               >
-                Regenerate
+                Send Test Webhook
               </button>
             </div>
           </div>
-        </div>
+        </form>
       </div>
 
       <div className="credential-card">
@@ -263,14 +303,14 @@ const Webhooks = () => {
         {loading ? (
           <div>Loading...</div>
         ) : (
-          <table data-test-id="webhook-logs-table">
+          <table data-testid="webhook-logs-table">
             <thead>
               <tr>
-                <th>ID</th>
                 <th>Event</th>
                 <th>Status</th>
                 <th>Attempts</th>
-                <th>Last Error</th>
+                <th>Last Attempt</th>
+                <th>Response Code</th>
                 <th>Action</th>
               </tr>
             </thead>
@@ -287,17 +327,17 @@ const Webhooks = () => {
                     isRetrying || String(w.status).toLowerCase() === "pending";
 
                   return (
-                    <tr key={w.id} data-test-id="webhook-log-item">
-                      <td>{w.id}</td>
-                      <td data-test-id="webhook-event">{w.event_type}</td>
-                      <td data-test-id="webhook-status">{w.status}</td>
-                      <td data-test-id="webhook-attempts">{w.attempts}</td>
-                      <td style={{ maxWidth: "260px", wordBreak: "break-word" }}>
-                        {w.last_error || "-"}
+                    <tr key={w.id} data-testid="webhook-log-item" data-webhook-id={w.id}>
+                      <td data-testid="webhook-event">{w.event}</td>
+                      <td data-testid="webhook-status">{w.status}</td>
+                      <td data-testid="webhook-attempts">{w.attempts}</td>
+                      <td data-testid="webhook-last-attempt">
+                        {w.last_attempt_at ? new Date(w.last_attempt_at).toLocaleString() : '-'}
                       </td>
+                      <td data-testid="webhook-response-code">{w.response_code || '-'}</td>
                       <td>
                         <button
-                          data-test-id="retry-webhook-button"
+                          data-testid="retry-webhook-button"
                           onClick={() => retryWebhook(w.id)}
                           disabled={disableRetry}
                           style={{
