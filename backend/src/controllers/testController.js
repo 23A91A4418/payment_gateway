@@ -31,13 +31,15 @@ const getJobsStatus = async (req, res) => {
             webhookQueue.getJobCounts()
         ]);
 
+        // Flatten and aggregate stats
         res.status(200).json({
-            queues: {
-                payment: paymentStats,
-                refund: refundStats,
-                webhook: webhookStats
-            },
-            worker_status: 'online' // If this code is running, the app is up; worker is a separate process but queues are accessible.
+            pending: (paymentStats.waiting || 0) + (paymentStats.delayed || 0) +
+                (refundStats.waiting || 0) + (refundStats.delayed || 0) +
+                (webhookStats.waiting || 0) + (webhookStats.delayed || 0),
+            processing: (paymentStats.active || 0) + (refundStats.active || 0) + (webhookStats.active || 0),
+            completed: (paymentStats.completed || 0) + (refundStats.completed || 0) + (webhookStats.completed || 0),
+            failed: (paymentStats.failed || 0) + (refundStats.failed || 0) + (webhookStats.failed || 0),
+            worker_status: 'online'
         });
     } catch (err) {
         console.error('Get Jobs Status Error:', err);

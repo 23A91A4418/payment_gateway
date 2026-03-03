@@ -115,7 +115,7 @@ webhookQueue.process(async (job) => {
 
     const result = await pool.query(
       `SELECT *
-       FROM webhook_events
+       FROM webhook_logs
        WHERE merchant_id=$1
          AND status='pending'
          AND (next_retry_at IS NULL OR next_retry_at <= CURRENT_TIMESTAMP)
@@ -129,7 +129,7 @@ webhookQueue.process(async (job) => {
     const eventRow = result.rows[0];
 
     console.log(
-      `Delivering webhook event ${eventRow.id} (${eventRow.event_type}) attempt=${(eventRow.attempts || 0) + 1}`
+      `Delivering webhook event ${eventRow.id} (${eventRow.event}) attempt=${(eventRow.attempts || 0) + 1}`
     );
 
     await deliverWebhook(eventRow);
@@ -137,7 +137,7 @@ webhookQueue.process(async (job) => {
     // If more pending events exist, schedule again
     const remaining = await pool.query(
       `SELECT 1
-       FROM webhook_events
+       FROM webhook_logs
        WHERE merchant_id=$1
          AND status='pending'
          AND (next_retry_at IS NULL OR next_retry_at <= CURRENT_TIMESTAMP)
@@ -160,7 +160,7 @@ setInterval(async () => {
   try {
     const due = await pool.query(
       `SELECT DISTINCT merchant_id
-       FROM webhook_events
+       FROM webhook_logs
        WHERE status='pending'
          AND (next_retry_at IS NULL OR next_retry_at <= CURRENT_TIMESTAMP)
        LIMIT 5`

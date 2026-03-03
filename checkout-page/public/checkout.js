@@ -48,7 +48,7 @@
           box-sizing: border-box;
         ">
           <div class="modal-content" style="
-            width: 100%;
+            width: 95%;
             max-width: 480px;
             height: 600px;
             max-height: 90vh;

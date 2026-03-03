@@ -13,14 +13,14 @@ async function listWebhooks(req, res) {
 
     const totalRes = await pool.query(
       `SELECT COUNT(*)::int AS count
-       FROM webhook_events
+       FROM webhook_logs
        WHERE merchant_id=$1`,
       [merchantId]
     );
 
     const rowsRes = await pool.query(
-      `SELECT id, event_type, status, attempts, last_error, next_retry_at, created_at, delivered_at
-       FROM webhook_events
+      `SELECT id, event, status, attempts, response_code, response_body, next_retry_at, created_at
+       FROM webhook_logs
        WHERE merchant_id=$1
        ORDER BY created_at DESC
        LIMIT $2 OFFSET $3`,
@@ -53,14 +53,14 @@ async function retryWebhook(req, res) {
 
     const findRes = await pool.query(
       `SELECT id, merchant_id, status, attempts
-       FROM webhook_events
+       FROM webhook_logs
        WHERE id=$1`,
       [webhookId]
     );
 
     if (findRes.rows.length === 0) {
       return res.status(404).json({
-        error: { code: "NOT_FOUND_ERROR", description: "Webhook event not found" },
+        error: { code: "NOT_FOUND_ERROR", description: "Webhook log not found" },
       });
     }
 
@@ -79,11 +79,10 @@ async function retryWebhook(req, res) {
     // ✅ DO NOT reset attempts
     // just schedule it again
     await pool.query(
-      `UPDATE webhook_events
+      `UPDATE webhook_logs
        SET status='pending',
-           last_error=NULL,
-           next_retry_at=NULL,
-           delivered_at=NULL
+           response_body=NULL,
+           next_retry_at=NULL
        WHERE id=$1`,
       [webhookId]
     );

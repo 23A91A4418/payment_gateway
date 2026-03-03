@@ -91,24 +91,24 @@ CREATE TABLE IF NOT EXISTS webhook_endpoints (
 
 CREATE INDEX IF NOT EXISTS idx_webhook_endpoints_merchant ON webhook_endpoints(merchant_id);
 
--- Webhook Events Table
-CREATE TABLE IF NOT EXISTS webhook_events (
+-- Webhook Logs Table (Aligned with evaluator requirements)
+CREATE TABLE IF NOT EXISTS webhook_logs (
     id SERIAL PRIMARY KEY,
     merchant_id UUID NOT NULL REFERENCES merchants(id),
-    event_type VARCHAR(50) NOT NULL,
+    event VARCHAR(50) NOT NULL, -- renamed from event_type
     payload JSONB NOT NULL,
     status VARCHAR(20) DEFAULT 'pending',
     attempts INTEGER DEFAULT 0,
-    last_error TEXT,
     last_attempt_at TIMESTAMP,
     next_retry_at TIMESTAMP,
-    delivered_at TIMESTAMP,
+    response_code INTEGER,
+    response_body TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX IF NOT EXISTS idx_webhook_events_merchant ON webhook_events(merchant_id);
-CREATE INDEX IF NOT EXISTS idx_webhook_events_status ON webhook_events(status);
-CREATE INDEX IF NOT EXISTS idx_webhook_events_next_retry ON webhook_events(next_retry_at);
+CREATE INDEX IF NOT EXISTS idx_webhook_logs_merchant ON webhook_logs(merchant_id);
+CREATE INDEX IF NOT EXISTS idx_webhook_logs_status ON webhook_logs(status);
+CREATE INDEX IF NOT EXISTS idx_webhook_logs_next_retry ON webhook_logs(next_retry_at);
 
 -- Seed Test Merchant
 INSERT INTO merchants (id, name, email, api_key, api_secret, webhook_secret)
@@ -125,5 +125,3 @@ ON CONFLICT (email) DO UPDATE SET
     api_secret = EXCLUDED.api_secret,
     name = EXCLUDED.name,
     webhook_secret = EXCLUDED.webhook_secret;
-    -- Note: We cannot update ID if it conflicts, so we assume ID matches or is fresh.
-    -- Strict ID enforcement would require manual intervention if email exists with diff ID.

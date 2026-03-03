@@ -54,7 +54,12 @@ const Checkout = () => {
   useEffect(() => {
     if (!isEmbedded) return;
 
-    const targetOrigin = searchParams.get("origin") || "*";
+    const targetOrigin = searchParams.get("origin");
+
+    // Safety check: don't post to '*' if we can avoid it.
+    // If no origin is provided, we default to localhost:3000 for development, 
+    // but in production it MUST be provided.
+    const safeTargetOrigin = (targetOrigin && targetOrigin !== "*") ? targetOrigin : "http://localhost:3000";
 
     if (paymentStatus === "success") {
       window.parent.postMessage(
@@ -62,7 +67,7 @@ const Checkout = () => {
           type: "payment_success",
           data: { paymentId },
         },
-        targetOrigin
+        safeTargetOrigin
       );
     }
 
@@ -72,7 +77,7 @@ const Checkout = () => {
           type: "payment_failed",
           data: { paymentId },
         },
-        targetOrigin
+        safeTargetOrigin
       );
     }
   }, [paymentStatus, paymentId, isEmbedded, searchParams]);
@@ -183,11 +188,13 @@ const Checkout = () => {
   const handleCloseEmbedded = () => {
     if (!isEmbedded) return;
 
+    const targetOrigin = searchParams.get("origin") || "http://localhost:3000";
+
     window.parent.postMessage(
       {
         type: "close_modal",
       },
-      "*"
+      targetOrigin
     );
   };
 

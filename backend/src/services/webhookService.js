@@ -31,21 +31,21 @@ function getRetryDelaysSeconds() {
 
 async function queueWebhookEvent(merchantId, eventType, payload) {
   await pool.query(
-    `INSERT INTO webhook_events (merchant_id, event_type, payload, status, attempts)
+    `INSERT INTO webhook_logs (merchant_id, event, payload, status, attempts)
      VALUES ($1,$2,$3,'pending',0)`,
     [merchantId, eventType, payload]
   );
 }
 
 async function deliverWebhook(eventRow) {
-  const { id, merchant_id, event_type, payload, attempts } = eventRow;
+  const { id, merchant_id, event: event_type, payload, attempts } = eventRow;
 
   // If already maxed out retries, mark failed and stop
   if ((attempts || 0) >= MAX_RETRIES) {
     await pool.query(
-      `UPDATE webhook_events
+      `UPDATE webhook_logs
        SET status='failed',
-           last_error='Max retries reached',
+           response_body='Max retries reached',
            next_retry_at=NULL
        WHERE id=$1`,
       [id]
@@ -64,9 +64,9 @@ async function deliverWebhook(eventRow) {
 
   if (endpointRes.rows.length === 0) {
     await pool.query(
-      `UPDATE webhook_events
+      `UPDATE webhook_logs
        SET status='failed',
-           last_error='No active webhook endpoint',
+           response_body='No active webhook endpoint',
            next_retry_at=NULL
        WHERE id=$1`,
       [id]
@@ -79,7 +79,7 @@ async function deliverWebhook(eventRow) {
 
   // Increment attempts BEFORE sending
   const attemptRes = await pool.query(
-    `UPDATE webhook_events
+    `UPDATE webhook_logs
      SET attempts = COALESCE(attempts,0) + 1,
          last_attempt_at = CURRENT_TIMESTAMP
      WHERE id=$1
@@ -90,7 +90,7 @@ async function deliverWebhook(eventRow) {
   const currentAttempt = attemptRes.rows[0].attempts;
 
   try {
-    await axios.post(endpoint.url, payload, {
+    const response = await axios.post(endpoint.url, payload, {
       timeout: 5000,
       headers: {
         "Content-Type": "application/json",
@@ -100,24 +100,28 @@ async function deliverWebhook(eventRow) {
     });
 
     await pool.query(
-      `UPDATE webhook_events
+      `UPDATE webhook_logs
        SET status='delivered',
-           delivered_at=CURRENT_TIMESTAMP,
-           last_error=NULL,
+           response_code=$2,
+           response_body=$3,
            next_retry_at=NULL
        WHERE id=$1`,
-      [id]
+      [id, response.status, JSON.stringify(response.data)]
     );
   } catch (err) {
+    const statusCode = err.response ? err.response.status : null;
+    const body = err.response ? JSON.stringify(err.response.data) : err.message;
+
     // If max retries reached after this attempt -> mark failed
     if (currentAttempt >= MAX_RETRIES) {
       await pool.query(
-        `UPDATE webhook_events
+        `UPDATE webhook_logs
          SET status='failed',
-             last_error=$2,
+             response_code=$2,
+             response_body=$3,
              next_retry_at=NULL
          WHERE id=$1`,
-        [id, err.message]
+        [id, statusCode, body]
       );
       return;
     }
@@ -126,12 +130,13 @@ async function deliverWebhook(eventRow) {
     const delaySeconds = delays[currentAttempt] ?? delays[delays.length - 1];
 
     await pool.query(
-      `UPDATE webhook_events
+      `UPDATE webhook_logs
        SET status='pending',
            next_retry_at=CURRENT_TIMESTAMP + ($2 || ' seconds')::interval,
-           last_error=$3
+           response_code=$3,
+           response_body=$4
        WHERE id=$1`,
-      [id, delaySeconds, err.message]
+      [id, delaySeconds, statusCode, body]
     );
   }
 }
