@@ -19,7 +19,7 @@ async function listWebhooks(req, res) {
     );
 
     const rowsRes = await pool.query(
-      `SELECT id, event, status, attempts, response_code, response_body, next_retry_at, created_at
+      `SELECT id, event, status, attempts, response_code, response_body, last_attempt_at, next_retry_at, created_at
        FROM webhook_logs
        WHERE merchant_id=$1
        ORDER BY created_at DESC

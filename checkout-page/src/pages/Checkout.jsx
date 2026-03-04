@@ -230,12 +230,12 @@ const Checkout = () => {
   if (loading || paymentStatus === "processing") {
     return (
       <div
-        data-test-id="checkout-container"
+        data-testid="checkout-container"
         className="flex justify-center items-center h-screen"
       >
-        <div data-test-id="processing-state" className="text-center">
+        <div data-testid="processing-state" className="text-center">
           <div className="spinner mb-4">Loading...</div>
-          <span data-test-id="processing-message">Processing payment...</span>
+          <span data-testid="processing-message">Processing payment...</span>
 
           {isEmbedded && (
             <button
@@ -260,21 +260,21 @@ const Checkout = () => {
   if (paymentStatus === "success") {
     return (
       <div
-        data-test-id="checkout-container"
+        data-testid="checkout-container"
         className="flex justify-center items-center h-screen"
       >
         <div
-          data-test-id="success-state"
+          data-testid="success-state"
           className="text-center p-8 bg-green-50 rounded shadow"
         >
           <h2 className="text-2xl mb-4">Payment Successful</h2>
 
           <div className="mb-2">
             <span>Payment ID: </span>
-            <span data-test-id="payment-id">{paymentId}</span>
+            <span data-testid="payment-id">{paymentId}</span>
           </div>
 
-          <span data-test-id="success-message">
+          <span data-testid="success-message">
             Your payment has been processed successfully
           </span>
 
@@ -302,21 +302,21 @@ const Checkout = () => {
   if (paymentStatus === "failed") {
     return (
       <div
-        data-test-id="checkout-container"
+        data-testid="checkout-container"
         className="flex justify-center items-center h-screen"
       >
         <div
-          data-test-id="error-state"
+          data-testid="error-state"
           className="text-center p-8 bg-red-50 rounded shadow"
         >
           <h2 className="text-2xl mb-4 text-red-600">Payment Failed</h2>
 
-          <span data-test-id="error-message" className="block mb-4">
+          <span data-testid="error-message" className="block mb-4">
             {error || "Payment could not be processed"}
           </span>
 
           <button
-            data-test-id="retry-button"
+            data-testid="retry-button"
             onClick={() => {
               setPaymentStatus(null);
               setPaymentId(null);
@@ -356,12 +356,12 @@ const Checkout = () => {
 
   return (
     <div
-      data-test-id="checkout-container"
+      data-testid="checkout-container"
       className="max-w-md mx-auto mt-10 p-6 bg-white shadow-lg rounded"
     >
-      <div data-test-id="order-summary" className="mb-6 border-b pb-4">
+      <div data-testid="order-summary" className="mb-6 border-b pb-4">
         <div className="flex items-center justify-between">
-          <h2 data-test-id="checkout-title" className="text-xl font-bold mb-2">
+          <h2 data-testid="checkout-title" className="text-xl font-bold mb-2">
             Complete Payment
           </h2>
 
@@ -383,21 +383,21 @@ const Checkout = () => {
 
         <div className="flex justify-between">
           <span>Amount: </span>
-          <span data-test-id="order-amount">
+          <span data-testid="order-amount">
             ₹{(order.amount / 100).toFixed(2)}
           </span>
         </div>
 
         <div className="flex justify-between">
           <span>Order ID: </span>
-          <span data-test-id="order-id">{order.id}</span>
+          <span data-testid="order-id">{order.id}</span>
         </div>
       </div>
 
       {!method ? (
-        <div data-test-id="payment-methods" className="space-y-4">
+        <div data-testid="payment-methods" className="space-y-4">
           <button
-            data-test-id="method-upi"
+            data-testid="method-upi"
             data-method="upi"
             className="w-full p-4 border rounded hover:bg-gray-50"
             onClick={() => setMethod("upi")}
@@ -406,7 +406,7 @@ const Checkout = () => {
           </button>
 
           <button
-            data-test-id="method-card"
+            data-testid="method-card"
             data-method="card"
             className="w-full p-4 border rounded hover:bg-gray-50"
             onClick={() => setMethod("card")}
@@ -424,9 +424,9 @@ const Checkout = () => {
           </button>
 
           {method === "upi" && (
-            <form data-test-id="upi-form" onSubmit={handlePayment}>
+            <form data-testid="upi-form" onSubmit={handlePayment}>
               <input
-                data-test-id="vpa-input"
+                data-testid="vpa-input"
                 placeholder="username@bank"
                 type="text"
                 className="w-full p-2 border rounded mb-4"
@@ -435,7 +435,7 @@ const Checkout = () => {
               />
 
               <button
-                data-test-id="pay-button"
+                data-testid="pay-button"
                 type="submit"
                 className="w-full bg-blue-600 text-white p-2 rounded"
               >
@@ -446,12 +446,12 @@ const Checkout = () => {
 
           {method === "card" && (
             <form
-              data-test-id="card-form"
+              data-testid="card-form"
               onSubmit={handlePayment}
               className="space-y-4"
             >
               <input
-                data-test-id="card-number-input"
+                data-testid="card-number-input"
                 placeholder="Card Number"
                 type="text"
                 className="w-full p-2 border rounded"
@@ -463,7 +463,7 @@ const Checkout = () => {
 
               <div className="flex gap-4">
                 <input
-                  data-test-id="expiry-input"
+                  data-testid="expiry-input"
                   placeholder="MM/YY"
                   type="text"
                   className="w-1/2 p-2 border rounded"
@@ -474,7 +474,7 @@ const Checkout = () => {
                 />
 
                 <input
-                  data-test-id="cvv-input"
+                  data-testid="cvv-input"
                   placeholder="CVV"
                   type="text"
                   className="w-1/2 p-2 border rounded"
@@ -486,7 +486,7 @@ const Checkout = () => {
               </div>
 
               <input
-                data-test-id="cardholder-name-input"
+                data-testid="cardholder-name-input"
                 placeholder="Name on Card"
                 type="text"
                 className="w-full p-2 border rounded"
@@ -497,7 +497,7 @@ const Checkout = () => {
               />
 
               <button
-                data-test-id="pay-button"
+                data-testid="pay-button"
                 type="submit"
                 className="w-full bg-blue-600 text-white p-2 rounded"
               >

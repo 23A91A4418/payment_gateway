@@ -18,6 +18,8 @@ Stores merchant details and API credentials used for authentication.
 | email | VARCHAR (UNIQUE) | Merchant email |
 | api_key | VARCHAR | API key used in request headers |
 | api_secret | VARCHAR | API secret used in request headers |
+| webhook_url | TEXT | Optional webhook URL |
+| webhook_secret | VARCHAR | Webhook signing secret |
 | is_active | BOOLEAN | Active status (default: true) |
 | created_at | TIMESTAMP | Created timestamp |
 | updated_at | TIMESTAMP | Updated timestamp |
@@ -68,6 +70,7 @@ Payments are created as `pending` and later updated asynchronously by the worker
 | card_last4 | VARCHAR(4) | Last 4 digits of card number |
 | error_code | VARCHAR | Failure code (if failed) |
 | error_description | TEXT | Failure description (if failed) |
+| captured | BOOLEAN | Whether payment is captured (default: false) |
 | created_at | TIMESTAMP | Created timestamp |
 | updated_at | TIMESTAMP | Updated timestamp |
 
@@ -139,27 +142,28 @@ Stores merchant webhook endpoint configuration.
 
 ---
 
-## Webhook Events
+## Webhook Logs
 
 Stores webhook delivery jobs and retry state.
 
-**Table:** `webhook_events`
+**Table:** `webhook_logs`
 
 | Column | Type | Description |
 |-------|------|-------------|
-| id | SERIAL (PK) | Event identifier |
+| id | UUID (PK) | Unique log identifier |
 | merchant_id | UUID (FK) | References `merchants.id` |
-| event_type | VARCHAR | Example: `payment.success`, `refund.processed` |
+| event | VARCHAR | Event type (e.g., `payment.success`) |
 | payload | JSONB | Webhook payload body |
 | status | VARCHAR | `pending` / `delivered` / `failed` |
 | attempts | INTEGER | Delivery attempt counter |
-| last_error | TEXT | Last failure reason (if any) |
+| last_attempt_at| TIMESTAMP | Last delivery attempt timestamp |
 | next_retry_at | TIMESTAMP | When the next retry is allowed |
-| delivered_at | TIMESTAMP | When delivery succeeded |
+| response_code | INTEGER | Last HTTP response code |
+| response_body | TEXT | Last HTTP response body |
 | created_at | TIMESTAMP | Created timestamp |
 
 **Relationships**
-- `webhook_events.merchant_id → merchants.id`
+- `webhook_logs.merchant_id → merchants.id`
 
 ---
 

@@ -41,52 +41,52 @@ const Dashboard = () => {
     }, []);
 
     return (
-        <div data-test-id="dashboard" className="dashboard">
+        <div data-testid="dashboard" className="dashboard">
             <h1 className="dashboard-title">Merchant Dashboard</h1>
 
             {merchant && (
-                <div data-test-id="api-credentials" className="credentials">
+                <div data-testid="api-credentials" className="credentials">
                     <div className="credential-card">
                         <label>API Key</label>
-                        <span data-test-id="api-key" className="credential-value">
+                        <span data-testid="api-key" className="credential-value">
                             {merchant.api_key}
                         </span>
                     </div>
 
                     <div className="credential-card">
                         <label>API Secret</label>
-                        <span data-test-id="api-secret" className="credential-value">
+                        <span data-testid="api-secret" className="credential-value">
                             {merchant.api_secret}
                         </span>
                     </div>
                 </div>
             )}
 
-            <div data-test-id="stats-container" className="stats">
+            <div data-testid="stats-container" className="stats">
                 <div className="stat-card">
                     <div className="stat-label">Total Transactions</div>
-                    <div data-test-id="total-transactions" className="stat-value">
+                    <div data-testid="total-transactions" className="stat-value">
                         {stats.totalTransactions}
                     </div>
                 </div>
 
                 <div className="stat-card">
                     <div className="stat-label">Total Amount</div>
-                    <div data-test-id="total-amount" className="stat-value">
+                    <div data-testid="total-amount" className="stat-value">
                         ₹{stats.totalAmount}
                     </div>
                 </div>
 
                 <div className="stat-card">
                     <div className="stat-label">Success Rate</div>
-                    <div data-test-id="success-rate" className="stat-value">
+                    <div data-testid="success-rate" className="stat-value">
                         {stats.successRate}
                     </div>
                 </div>
             </div>
 
             <button
-                data-test-id="view-transactions-button"
+                data-testid="view-transactions-button"
                 className="login-button"
                 style={{ marginTop: '30px', maxWidth: '200px' }}
                 onClick={() => navigate('/dashboard/transactions')}

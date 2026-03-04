@@ -46,7 +46,7 @@ const Transactions = () => {
             >
                 Back to Dashboard
             </button>
-            <table data-test-id="transactions-table">
+            <table data-testid="transactions-table">
                 <thead>
                     <tr>
                         <th>Payment ID</th>
@@ -59,13 +59,13 @@ const Transactions = () => {
                 </thead>
                 <tbody>
                     {transactions.map((txn) => (
-                        <tr key={txn.id} data-test-id="transaction-row" data-payment-id={txn.id}>
-                            <td data-test-id="payment-id">{txn.id}</td>
-                            <td data-test-id="order-id">{txn.order_id}</td>
-                            <td data-test-id="amount">₹{txn.amount / 100}</td>
-                            <td data-test-id="method">{txn.method}</td>
-                            <td data-test-id="status">{txn.status}</td>
-                            <td data-test-id="created-at">{new Date(txn.created_at).toLocaleString()}</td>
+                        <tr key={txn.id} data-testid="transaction-row" data-payment-id={txn.id}>
+                            <td data-testid="payment-id">{txn.id}</td>
+                            <td data-testid="order-id">{txn.order_id}</td>
+                            <td data-testid="amount">₹{txn.amount / 100}</td>
+                            <td data-testid="method">{txn.method}</td>
+                            <td data-testid="status">{txn.status}</td>
+                            <td data-testid="created-at">{new Date(txn.created_at).toLocaleString()}</td>
                         </tr>
                     ))}
                     {transactions.length === 0 && (
