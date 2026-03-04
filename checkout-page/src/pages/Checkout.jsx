@@ -225,33 +225,24 @@ const Checkout = () => {
     );
   }
 
-  if (!order) return <div>Loading...</div>;
+  if (!order) {
+    return (
+      <div data-testid="checkout-container" className="flex justify-center items-center h-screen">
+        <div className="text-center p-12 bg-white rounded-xl shadow-lg border border-gray-100">
+          <div className="spinner mb-4"></div>
+          <p className="text-gray-500 font-medium">Fetching order details...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (loading || paymentStatus === "processing") {
     return (
-      <div
-        data-testid="checkout-container"
-        className="flex justify-center items-center h-screen"
-      >
-        <div data-testid="processing-state" className="text-center">
-          <div className="spinner mb-4">Loading...</div>
-          <span data-testid="processing-message">Processing payment...</span>
-
-          {isEmbedded && (
-            <button
-              onClick={handleCloseEmbedded}
-              style={{
-                marginTop: "16px",
-                padding: "10px 14px",
-                border: "1px solid #ccc",
-                borderRadius: "8px",
-                background: "#fff",
-                cursor: "pointer",
-              }}
-            >
-              Close
-            </button>
-          )}
+      <div data-testid="checkout-container" className="flex justify-center items-center h-screen">
+        <div data-testid="processing-state" className="text-center p-12 bg-white rounded-xl shadow-lg border border-gray-100">
+          <div className="spinner mb-4"></div>
+          <h2 className="text-xl font-bold mb-2">Processing Payment</h2>
+          <span data-testid="processing-message" className="text-gray-500">Please do not refresh the page...</span>
         </div>
       </div>
     );
@@ -395,11 +386,10 @@ const Checkout = () => {
       </div>
 
       {!method ? (
-        <div data-testid="payment-methods" className="space-y-4">
+        <div data-testid="payment-methods" className="payment-methods">
           <button
             data-testid="method-upi"
             data-method="upi"
-            className="w-full p-4 border rounded hover:bg-gray-50"
             onClick={() => setMethod("upi")}
           >
             UPI
@@ -408,7 +398,6 @@ const Checkout = () => {
           <button
             data-testid="method-card"
             data-method="card"
-            className="w-full p-4 border rounded hover:bg-gray-50"
             onClick={() => setMethod("card")}
           >
             Card
@@ -418,9 +407,9 @@ const Checkout = () => {
         <div>
           <button
             onClick={() => setMethod(null)}
-            className="mb-4 text-sm text-gray-500"
+            className="back-button"
           >
-            Back
+            ← Back
           </button>
 
           {method === "upi" && (
@@ -437,7 +426,6 @@ const Checkout = () => {
               <button
                 data-testid="pay-button"
                 type="submit"
-                className="w-full bg-blue-600 text-white p-2 rounded"
               >
                 Pay ₹{(order.amount / 100).toFixed(2)}
               </button>
@@ -499,7 +487,6 @@ const Checkout = () => {
               <button
                 data-testid="pay-button"
                 type="submit"
-                className="w-full bg-blue-600 text-white p-2 rounded"
               >
                 Pay ₹{(order.amount / 100).toFixed(2)}
               </button>
