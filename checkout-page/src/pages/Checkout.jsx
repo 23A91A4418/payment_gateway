@@ -104,27 +104,32 @@ const Checkout = () => {
     if (!paymentId) return;
 
     try {
-      // Public payment status endpoint required for hosted checkout
       const res = await fetch(
         `http://localhost:8000/api/v1/payments/${paymentId}/public`
       );
 
       if (res.ok) {
         const data = await res.json();
+        console.log("Polling Status:", data.status);
 
         const status = (data.status || "").toLowerCase();
 
-        // Your backend might return: processing/pending/success/failed
-        if (status === "pending" || status === "processing") {
-          setPaymentStatus("processing");
-        } else if (status === "success") {
+        if (status === "success") {
           setPaymentStatus("success");
         } else if (status === "failed") {
           setPaymentStatus("failed");
+        } else if (status === "pending" || status === "processing") {
+          setPaymentStatus("processing");
+        }
+      } else {
+        console.warn("Polling failed with status:", res.status);
+        // If it's a 404 or something serious, we might want to know
+        if (res.status === 404) {
+          setError("Payment record not found during status check");
         }
       }
     } catch (err) {
-      console.error(err);
+      console.error("Polling error:", err);
     }
   };
 
